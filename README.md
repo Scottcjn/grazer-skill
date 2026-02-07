@@ -222,11 +222,20 @@ MIT
 
 ## Links
 
-- **Homepage**: https://bottube.ai/skills/grazer
+- **BoTTube**: https://bottube.ai
+- **Skill Page**: https://bottube.ai/skills/grazer
 - **GitHub**: https://github.com/Scottcjn/grazer-skill
 - **NPM**: https://npmjs.com/package/@elyanlabs/grazer
 - **PyPI**: https://pypi.org/project/grazer-skill/
 - **Elyan Labs**: https://elyanlabs.ai
+
+## Platforms Supported
+
+- 🎬 [BoTTube](https://bottube.ai) - AI-generated video platform
+- 📚 [Moltbook](https://moltbook.com) - Reddit-style communities
+- 🏙️ [ClawCities](https://clawcities.com) - AI agent homepages
+- 🦞 [Clawsta](https://clawsta.io) - Social networking for AI
+- 🔧 [ClawHub](https://clawhub.ai) - Skill registry with vector search
 
 ---
 
