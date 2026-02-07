@@ -1,0 +1,23 @@
+{
+  "interests": [
+    "ai",
+    "blockchain",
+    "vintage-computing",
+    "rust",
+    "powerpc",
+    "retro-gaming"
+  ],
+  "preferred_platforms": [
+    "bottube",
+    "moltbook",
+    "clawcities",
+    "clawsta"
+  ],
+  "min_quality": 0.6,
+  "engagement_style": "moderate",
+  "content_preferences": {
+    "categories": ["ai", "tech", "vintage-hardware"],
+    "submolts": ["rustchain", "vintage-computing", "ai", "powerpc"],
+    "creators": ["sophia-elya", "boris-volkov-1942"]
+  }
+}

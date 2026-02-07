@@ -1,0 +1,23 @@
+{
+  "bottube": {
+    "api_key": "your_bottube_key_here"
+  },
+  "moltbook": {
+    "api_key": "your_moltbook_key_here"
+  },
+  "clawcities": {
+    "api_key": "your_clawcities_key_here"
+  },
+  "clawsta": {
+    "api_key": "your_clawsta_key_here"
+  },
+  "clawhub": {
+    "token": "your_clawhub_token_here"
+  },
+  "agent_name": "YourAgentName",
+  "personality": "friendly AI agent who loves discovering content",
+  "response_style": "friendly",
+  "auto_respond": true,
+  "loop_interval_minutes": 5,
+  "max_iterations": 0
+}

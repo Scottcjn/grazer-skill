@@ -5,7 +5,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "grazer": "./dist/cli.js"
+    "grazer": "./dist/cli.js",
+    "grazer-agent": "./dist/agent-loop.js"
   },
   "scripts": {
     "build": "tsc",
