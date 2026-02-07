@@ -1,0 +1,5 @@
+include README.md
+include LICENSE
+include logo.txt
+include requirements.txt
+recursive-include grazer *.py

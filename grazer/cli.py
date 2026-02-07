@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+"""
+Grazer CLI for Python
+"""
+
+import argparse
+import json
+import os
+import sys
+from pathlib import Path
+from typing import Optional
+
+from grazer import GrazerClient
+
+
+def load_config() -> dict:
+    """Load config from ~/.grazer/config.json."""
+    config_path = Path.home() / ".grazer" / "config.json"
+    if not config_path.exists():
+        print("⚠️  No config found at ~/.grazer/config.json")
+        print("Using limited features (public APIs only)")
+        return {}
+    return json.loads(config_path.read_text())
+
+
+def cmd_discover(args):
+    """Discover trending content."""
+    config = load_config()
+    client = GrazerClient(
+        bottube_key=config.get("bottube", {}).get("api_key"),
+        moltbook_key=config.get("moltbook", {}).get("api_key"),
+        clawcities_key=config.get("clawcities", {}).get("api_key"),
+        clawsta_key=config.get("clawsta", {}).get("api_key"),
+    )
+
+    if args.platform == "bottube":
+        videos = client.discover_bottube(category=args.category, limit=args.limit)
+        print("\n🎬 BoTTube Videos:\n")
+        for v in videos:
+            print(f"  {v['title']}")
+            print(f"    by {v['agent']} | {v['views']} views | {v['category']}")
+            print(f"    {v['stream_url']}\n")
+
+    elif args.platform == "moltbook":
+        posts = client.discover_moltbook(submolt=args.submolt, limit=args.limit)
+        print("\n📚 Moltbook Posts:\n")
+        for p in posts:
+            print(f"  {p['title']}")
+            print(f"    m/{p['submolt']} | {p.get('upvotes', 0)} upvotes")
+            print(f"    https://moltbook.com{p['url']}\n")
+
+    elif args.platform == "clawcities":
+        sites = client.discover_clawcities(limit=args.limit)
+        print("\n🏙️ ClawCities Sites:\n")
+        for s in sites:
+            print(f"  {s['display_name']}")
+            print(f"    {s['url']}\n")
+
+    elif args.platform == "clawsta":
+        posts = client.discover_clawsta(limit=args.limit)
+        print("\n🦞 Clawsta Posts:\n")
+        for p in posts:
+            content = p["content"][:60] + "..." if len(p["content"]) > 60 else p["content"]
+            print(f"  {content}")
+            print(f"    by {p['author']} | {p.get('likes', 0)} likes\n")
+
+    elif args.platform == "all":
+        all_content = client.discover_all()
+        print("\n🌐 All Platforms:\n")
+        print(f"  BoTTube: {len(all_content['bottube'])} videos")
+        print(f"  Moltbook: {len(all_content['moltbook'])} posts")
+        print(f"  ClawCities: {len(all_content['clawcities'])} sites")
+        print(f"  Clawsta: {len(all_content['clawsta'])} posts\n")
+
+
+def cmd_stats(args):
+    """Get platform statistics."""
+    config = load_config()
+    client = GrazerClient()
+
+    if args.platform == "bottube":
+        stats = client.get_bottube_stats()
+        print("\n🎬 BoTTube Stats:\n")
+        print(f"  Total Videos: {stats.get('total_videos', 0)}")
+        print(f"  Total Views: {stats.get('total_views', 0)}")
+        print(f"  Total Agents: {stats.get('total_agents', 0)}")
+        print(f"  Categories: {', '.join(stats.get('categories', []))}\n")
+
+
+def cmd_comment(args):
+    """Leave a comment."""
+    config = load_config()
+    client = GrazerClient(
+        moltbook_key=config.get("moltbook", {}).get("api_key"),
+        clawcities_key=config.get("clawcities", {}).get("api_key"),
+        clawsta_key=config.get("clawsta", {}).get("api_key"),
+    )
+
+    if args.platform == "clawcities":
+        result = client.comment_clawcities(args.target, args.message)
+        print(f"\n✓ Comment posted to {args.target}")
+        print(f"  ID: {result.get('comment', {}).get('id')}")
+
+    elif args.platform == "clawsta":
+        result = client.post_clawsta(args.message)
+        print(f"\n✓ Posted to Clawsta")
+        print(f"  ID: {result.get('id')}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="🐄 Grazer - Content discovery for AI agents"
+    )
+    parser.add_argument("--version", action="version", version="grazer 1.0.0")
+
+    subparsers = parser.add_subparsers(dest="command", help="Commands")
+
+    # discover command
+    discover_parser = subparsers.add_parser("discover", help="Discover trending content")
+    discover_parser.add_argument(
+        "-p", "--platform",
+        choices=["bottube", "moltbook", "clawcities", "clawsta", "all"],
+        default="all",
+        help="Platform to search"
+    )
+    discover_parser.add_argument("-c", "--category", help="BoTTube category")
+    discover_parser.add_argument("-s", "--submolt", help="Moltbook submolt", default="tech")
+    discover_parser.add_argument("-l", "--limit", type=int, default=20, help="Result limit")
+
+    # stats command
+    stats_parser = subparsers.add_parser("stats", help="Get platform statistics")
+    stats_parser.add_argument(
+        "-p", "--platform",
+        choices=["bottube"],
+        required=True,
+        help="Platform"
+    )
+
+    # comment command
+    comment_parser = subparsers.add_parser("comment", help="Leave a comment")
+    comment_parser.add_argument(
+        "-p", "--platform",
+        choices=["clawcities", "clawsta"],
+        required=True,
+        help="Platform"
+    )
+    comment_parser.add_argument("-t", "--target", help="Target (site name, post ID)")
+    comment_parser.add_argument("-m", "--message", required=True, help="Comment message")
+
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+
+    try:
+        if args.command == "discover":
+            cmd_discover(args)
+        elif args.command == "stats":
+            cmd_stats(args)
+        elif args.command == "comment":
+            cmd_comment(args)
+    except Exception as e:
+        print(f"\n❌ Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

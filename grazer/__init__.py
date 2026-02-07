@@ -1,0 +1,244 @@
+"""
+Grazer - Multi-Platform Content Discovery for AI Agents
+PyPI package for Python integration
+"""
+
+import requests
+from typing import List, Dict, Optional
+from datetime import datetime
+
+
+class GrazerClient:
+    """Client for discovering and engaging with content across platforms."""
+
+    def __init__(
+        self,
+        bottube_key: Optional[str] = None,
+        moltbook_key: Optional[str] = None,
+        clawcities_key: Optional[str] = None,
+        clawsta_key: Optional[str] = None,
+        timeout: int = 15,
+    ):
+        self.bottube_key = bottube_key
+        self.moltbook_key = moltbook_key
+        self.clawcities_key = clawcities_key
+        self.clawsta_key = clawsta_key
+        self.timeout = timeout
+        self.session = requests.Session()
+        self.session.headers.update({"User-Agent": "Grazer/1.0.0 (Elyan Labs)"})
+
+    # ───────────────────────────────────────────────────────────
+    # BoTTube
+    # ───────────────────────────────────────────────────────────
+
+    def discover_bottube(
+        self, category: Optional[str] = None, agent: Optional[str] = None, limit: int = 20
+    ) -> List[Dict]:
+        """Discover BoTTube videos."""
+        params = {"limit": limit}
+        if category:
+            params["category"] = category
+        if agent:
+            params["agent"] = agent
+
+        resp = self.session.get(
+            "https://bottube.ai/api/videos", params=params, timeout=self.timeout
+        )
+        resp.raise_for_status()
+        videos = resp.json().get("videos", [])
+        for v in videos:
+            v["stream_url"] = f"https://bottube.ai/api/videos/{v['id']}/stream"
+        return videos
+
+    def search_bottube(self, query: str, limit: int = 10) -> List[Dict]:
+        """Search BoTTube videos."""
+        resp = self.session.get(
+            "https://bottube.ai/api/videos/search",
+            params={"q": query, "limit": limit},
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json().get("videos", [])
+
+    def get_bottube_stats(self) -> Dict:
+        """Get BoTTube platform statistics."""
+        resp = self.session.get("https://bottube.ai/api/stats", timeout=self.timeout)
+        resp.raise_for_status()
+        return resp.json()
+
+    # ───────────────────────────────────────────────────────────
+    # Moltbook
+    # ───────────────────────────────────────────────────────────
+
+    def discover_moltbook(self, submolt: str = "tech", limit: int = 20) -> List[Dict]:
+        """Discover Moltbook posts."""
+        headers = {}
+        if self.moltbook_key:
+            headers["Authorization"] = f"Bearer {self.moltbook_key}"
+
+        resp = self.session.get(
+            "https://www.moltbook.com/api/v1/posts",
+            params={"submolt": submolt, "limit": limit},
+            headers=headers,
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json().get("posts", [])
+
+    def post_moltbook(
+        self, content: str, title: str, submolt: str = "tech"
+    ) -> Dict:
+        """Post to Moltbook."""
+        if not self.moltbook_key:
+            raise ValueError("Moltbook API key required")
+
+        resp = self.session.post(
+            "https://www.moltbook.com/api/v1/posts",
+            json={"content": content, "title": title, "submolt": submolt},
+            headers={
+                "Authorization": f"Bearer {self.moltbook_key}",
+                "Content-Type": "application/json",
+            },
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    # ───────────────────────────────────────────────────────────
+    # ClawCities
+    # ───────────────────────────────────────────────────────────
+
+    def discover_clawcities(self, limit: int = 20) -> List[Dict]:
+        """Discover ClawCities sites (known Elyan Labs sites)."""
+        return [
+            {
+                "name": "sophia-elya",
+                "display_name": "Sophia Elya",
+                "description": "Elyan Labs AI agent",
+                "url": "https://clawcities.com/sophia-elya",
+                "guestbook_count": 0,
+            },
+            {
+                "name": "automatedjanitor2015",
+                "display_name": "AutomatedJanitor2015",
+                "description": "Elyan Labs Ops",
+                "url": "https://clawcities.com/automatedjanitor2015",
+                "guestbook_count": 0,
+            },
+            {
+                "name": "boris-volkov-1942",
+                "display_name": "Boris Volkov",
+                "description": "Infrastructure Commissar",
+                "url": "https://clawcities.com/boris-volkov-1942",
+                "guestbook_count": 0,
+            },
+        ]
+
+    def comment_clawcities(self, site_name: str, message: str) -> Dict:
+        """Leave a guestbook comment on a ClawCities site."""
+        if not self.clawcities_key:
+            raise ValueError("ClawCities API key required")
+
+        resp = self.session.post(
+            f"https://clawcities.com/api/v1/sites/{site_name}/comments",
+            json={"body": message},
+            headers={
+                "Authorization": f"Bearer {self.clawcities_key}",
+                "Content-Type": "application/json",
+            },
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    # ───────────────────────────────────────────────────────────
+    # Clawsta
+    # ───────────────────────────────────────────────────────────
+
+    def discover_clawsta(self, limit: int = 20) -> List[Dict]:
+        """Discover Clawsta posts."""
+        headers = {}
+        if self.clawsta_key:
+            headers["Authorization"] = f"Bearer {self.clawsta_key}"
+
+        resp = self.session.get(
+            "https://clawsta.io/v1/posts",
+            params={"limit": limit},
+            headers=headers,
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json().get("posts", [])
+
+    def post_clawsta(self, content: str) -> Dict:
+        """Post to Clawsta."""
+        if not self.clawsta_key:
+            raise ValueError("Clawsta API key required")
+
+        resp = self.session.post(
+            "https://clawsta.io/v1/posts",
+            json={"content": content},
+            headers={
+                "Authorization": f"Bearer {self.clawsta_key}",
+                "Content-Type": "application/json",
+            },
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    # ───────────────────────────────────────────────────────────
+    # Cross-Platform
+    # ───────────────────────────────────────────────────────────
+
+    def discover_all(self) -> Dict[str, List[Dict]]:
+        """Discover content from all platforms."""
+        results = {
+            "bottube": [],
+            "moltbook": [],
+            "clawcities": [],
+            "clawsta": [],
+        }
+
+        try:
+            results["bottube"] = self.discover_bottube(limit=10)
+        except Exception:
+            pass
+
+        try:
+            results["moltbook"] = self.discover_moltbook(limit=10)
+        except Exception:
+            pass
+
+        try:
+            results["clawcities"] = self.discover_clawcities(10)
+        except Exception:
+            pass
+
+        try:
+            results["clawsta"] = self.discover_clawsta(10)
+        except Exception:
+            pass
+
+        return results
+
+    def report_download(self, platform: str, version: str):
+        """Report download to BoTTube tracking system."""
+        try:
+            self.session.post(
+                "https://bottube.ai/api/downloads/skill",
+                json={
+                    "skill": "grazer",
+                    "platform": platform,
+                    "version": version,
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
+                timeout=5,
+            )
+        except Exception:
+            # Silent fail - don't block installation
+            pass
+
+
+__version__ = "1.0.0"
+__all__ = ["GrazerClient"]

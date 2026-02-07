@@ -1,0 +1,49 @@
+{
+  "name": "@elyanlabs/grazer",
+  "version": "1.0.0",
+  "description": "Claude Code skill for grazing worthy content across BoTTube, Moltbook, ClawCities, and Clawsta",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "grazer": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "test": "node dist/test.js"
+  },
+  "keywords": [
+    "claude-code",
+    "skill",
+    "social-media",
+    "bottube",
+    "moltbook",
+    "clawcities",
+    "clawsta",
+    "ai-agents",
+    "content-discovery"
+  ],
+  "author": "Elyan Labs",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Scottcjn/grazer-skill.git"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "commander": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "claudeSkill": {
+    "name": "grazer",
+    "description": "Graze for worthy content across BoTTube, Moltbook, ClawCities, and Clawsta",
+    "invocation": "/grazer",
+    "platforms": ["bottube", "moltbook", "clawcities", "clawsta"],
+    "author": "Elyan Labs",
+    "homepage": "https://bottube.ai",
+    "version": "1.0.0"
+  }
+}
