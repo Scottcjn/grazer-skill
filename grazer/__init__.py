@@ -17,12 +17,14 @@ class GrazerClient:
         moltbook_key: Optional[str] = None,
         clawcities_key: Optional[str] = None,
         clawsta_key: Optional[str] = None,
+        fourclaw_key: Optional[str] = None,
         timeout: int = 15,
     ):
         self.bottube_key = bottube_key
         self.moltbook_key = moltbook_key
         self.clawcities_key = clawcities_key
         self.clawsta_key = clawsta_key
+        self.fourclaw_key = fourclaw_key
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": "Grazer/1.0.0 (Elyan Labs)"})
@@ -188,6 +190,91 @@ class GrazerClient:
         return resp.json()
 
     # ───────────────────────────────────────────────────────────
+    # 4claw
+    # ───────────────────────────────────────────────────────────
+
+    def _fourclaw_headers(self) -> Dict:
+        """Auth headers for 4claw (required for all endpoints)."""
+        if not self.fourclaw_key:
+            raise ValueError("4claw API key required")
+        return {"Authorization": f"Bearer {self.fourclaw_key}"}
+
+    def discover_fourclaw(
+        self, board: str = "b", limit: int = 20, include_content: bool = False
+    ) -> List[Dict]:
+        """Discover 4claw threads from a board."""
+        params = {"limit": min(limit, 20)}
+        if include_content:
+            params["includeContent"] = 1
+
+        resp = self.session.get(
+            f"https://www.4claw.org/api/v1/boards/{board}/threads",
+            params=params,
+            headers=self._fourclaw_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json().get("threads", [])
+
+    def get_fourclaw_boards(self) -> List[Dict]:
+        """List all 4claw boards."""
+        resp = self.session.get(
+            "https://www.4claw.org/api/v1/boards",
+            headers=self._fourclaw_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json().get("boards", [])
+
+    def get_fourclaw_thread(self, thread_id: str) -> Dict:
+        """Get a 4claw thread with all replies."""
+        resp = self.session.get(
+            f"https://www.4claw.org/api/v1/threads/{thread_id}",
+            headers=self._fourclaw_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def post_fourclaw(
+        self, board: str, title: str, content: str, anon: bool = False
+    ) -> Dict:
+        """Create a new thread on a 4claw board."""
+        if not self.fourclaw_key:
+            raise ValueError("4claw API key required")
+
+        resp = self.session.post(
+            f"https://www.4claw.org/api/v1/boards/{board}/threads",
+            json={"title": title, "content": content, "anon": anon},
+            headers={
+                "Authorization": f"Bearer {self.fourclaw_key}",
+                "Content-Type": "application/json",
+            },
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def reply_fourclaw(
+        self, thread_id: str, content: str, anon: bool = False, bump: bool = True
+    ) -> Dict:
+        """Reply to a 4claw thread."""
+        if not self.fourclaw_key:
+            raise ValueError("4claw API key required")
+
+        resp = self.session.post(
+            f"https://www.4claw.org/api/v1/threads/{thread_id}/replies",
+            json={"content": content, "anon": anon, "bump": bump},
+            headers={
+                "Authorization": f"Bearer {self.fourclaw_key}",
+                "Content-Type": "application/json",
+            },
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    # ───────────────────────────────────────────────────────────
     # Cross-Platform
     # ───────────────────────────────────────────────────────────
 
@@ -198,6 +285,7 @@ class GrazerClient:
             "moltbook": [],
             "clawcities": [],
             "clawsta": [],
+            "fourclaw": [],
         }
 
         try:
@@ -217,6 +305,11 @@ class GrazerClient:
 
         try:
             results["clawsta"] = self.discover_clawsta(10)
+        except Exception:
+            pass
+
+        try:
+            results["fourclaw"] = self.discover_fourclaw(board="b", limit=10)
         except Exception:
             pass
 
@@ -240,5 +333,5 @@ class GrazerClient:
             pass
 
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __all__ = ["GrazerClient"]

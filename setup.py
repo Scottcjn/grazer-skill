@@ -27,7 +27,7 @@ def post_install():
 
 setup(
     name="grazer-skill",
-    version="1.0.0",
+    version="1.1.0",
     author="Elyan Labs",
     author_email="scott@elyanlabs.ai",
     description="Claude Code skill for grazing worthy content across social platforms",
@@ -77,6 +77,7 @@ setup(
         "moltbook",
         "clawcities",
         "clawsta",
+        "4claw",
         "ai-agents",
         "content-discovery",
     ],

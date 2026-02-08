@@ -24,14 +24,15 @@ function loadConfig(): any {
 program
   .name('grazer')
   .description('Graze for worthy content across social platforms')
-  .version('1.0.0');
+  .version('1.1.0');
 
 program
   .command('discover')
   .description('Discover trending content')
-  .option('-p, --platform <platform>', 'Platform: bottube, moltbook, clawcities, clawsta, all')
+  .option('-p, --platform <platform>', 'Platform: bottube, moltbook, clawcities, clawsta, fourclaw, all')
   .option('-c, --category <category>', 'BoTTube category')
   .option('-s, --submolt <submolt>', 'Moltbook submolt')
+  .option('-b, --board <board>', '4claw board (e.g. b, singularity, crypto)')
   .option('-l, --limit <limit>', 'Result limit', '20')
   .action(async (options) => {
     const config = loadConfig();
@@ -40,6 +41,7 @@ program
       moltbook: config.moltbook?.api_key,
       clawcities: config.clawcities?.api_key,
       clawsta: config.clawsta?.api_key,
+      fourclaw: config.fourclaw?.api_key,
     });
 
     const limit = parseInt(options.limit);
@@ -80,13 +82,25 @@ program
         console.log(`  ${p.content.slice(0, 60)}...`);
         console.log(`    by ${p.author} | ${p.likes} likes\n`);
       });
+    } else if (options.platform === 'fourclaw') {
+      const board = options.board || 'b';
+      const threads = await client.discoverFourclaw({ board, limit, includeContent: true });
+      console.log(`\n🦞 4claw /${board}/:\n`);
+      threads.forEach((t: any) => {
+        const title = t.title || '(untitled)';
+        const replies = t.replyCount || 0;
+        const agent = t.agentName || 'anon';
+        console.log(`  ${title}`);
+        console.log(`    by ${agent} | ${replies} replies | id:${t.id.slice(0, 8)}\n`);
+      });
     } else if (options.platform === 'all') {
       const all = await client.discoverAll();
       console.log('\n🌐 All Platforms:\n');
       console.log(`  BoTTube: ${all.bottube.length} videos`);
       console.log(`  Moltbook: ${all.moltbook.length} posts`);
       console.log(`  ClawCities: ${all.clawcities.length} sites`);
-      console.log(`  Clawsta: ${all.clawsta.length} posts\n`);
+      console.log(`  Clawsta: ${all.clawsta.length} posts`);
+      console.log(`  4claw: ${all.fourclaw.length} threads\n`);
     }
   });
 
@@ -110,9 +124,9 @@ program
 
 program
   .command('comment')
-  .description('Leave a comment/guestbook entry')
-  .requiredOption('-p, --platform <platform>', 'Platform: clawcities, moltbook, clawsta')
-  .requiredOption('-t, --target <target>', 'Target: site name, post ID, etc.')
+  .description('Reply to a thread or leave a comment')
+  .requiredOption('-p, --platform <platform>', 'Platform: clawcities, clawsta, fourclaw')
+  .option('-t, --target <target>', 'Target: site name, post/thread ID')
   .requiredOption('-m, --message <message>', 'Comment message')
   .action(async (options) => {
     const config = loadConfig();
@@ -120,6 +134,7 @@ program
       moltbook: config.moltbook?.api_key,
       clawcities: config.clawcities?.api_key,
       clawsta: config.clawsta?.api_key,
+      fourclaw: config.fourclaw?.api_key,
     });
 
     if (options.platform === 'clawcities') {
@@ -130,6 +145,45 @@ program
       const result = await client.postClawsta(options.message);
       console.log('\n✓ Posted to Clawsta');
       console.log('  ID:', result.id);
+    } else if (options.platform === 'fourclaw') {
+      if (!options.target) {
+        console.error('Error: --target thread_id required for 4claw replies');
+        process.exit(1);
+      }
+      const result = await client.replyFourclaw(options.target, options.message);
+      console.log(`\n✓ Reply posted to thread ${options.target.slice(0, 8)}...`);
+      console.log('  ID:', result.reply?.id || 'ok');
+    }
+  });
+
+program
+  .command('post')
+  .description('Create a new post or thread')
+  .requiredOption('-p, --platform <platform>', 'Platform: fourclaw, moltbook')
+  .option('-b, --board <board>', 'Board/submolt name')
+  .requiredOption('-t, --title <title>', 'Post/thread title')
+  .requiredOption('-m, --message <message>', 'Post content')
+  .action(async (options) => {
+    const config = loadConfig();
+    const client = new GrazerClient({
+      moltbook: config.moltbook?.api_key,
+      fourclaw: config.fourclaw?.api_key,
+    });
+
+    if (options.platform === 'fourclaw') {
+      if (!options.board) {
+        console.error('Error: --board required for 4claw (e.g. b, singularity, crypto)');
+        process.exit(1);
+      }
+      const result = await client.postFourclaw(options.board, options.title, options.message);
+      const thread = result.thread || {};
+      console.log(`\n✓ Thread created on /${options.board}/`);
+      console.log(`  Title: ${thread.title}`);
+      console.log(`  ID: ${thread.id}`);
+    } else if (options.platform === 'moltbook') {
+      const result = await client.postMoltbook(options.message, options.title, options.board || 'tech');
+      console.log(`\n✓ Posted to m/${options.board || 'tech'}`);
+      console.log(`  ID: ${result.id || 'ok'}`);
     }
   });
 

@@ -31,6 +31,7 @@ def cmd_discover(args):
         moltbook_key=config.get("moltbook", {}).get("api_key"),
         clawcities_key=config.get("clawcities", {}).get("api_key"),
         clawsta_key=config.get("clawsta", {}).get("api_key"),
+        fourclaw_key=config.get("fourclaw", {}).get("api_key"),
     )
 
     if args.platform == "bottube":
@@ -64,13 +65,25 @@ def cmd_discover(args):
             print(f"  {content}")
             print(f"    by {p['author']} | {p.get('likes', 0)} likes\n")
 
+    elif args.platform == "fourclaw":
+        board = args.board or "b"
+        threads = client.discover_fourclaw(board=board, limit=args.limit, include_content=True)
+        print(f"\n🦞 4claw /{board}/:\n")
+        for t in threads:
+            title = t.get("title", "(untitled)")
+            replies = t.get("replyCount", 0)
+            agent = t.get("agentName", "anon")
+            print(f"  {title}")
+            print(f"    by {agent} | {replies} replies | id:{t['id'][:8]}\n")
+
     elif args.platform == "all":
         all_content = client.discover_all()
         print("\n🌐 All Platforms:\n")
         print(f"  BoTTube: {len(all_content['bottube'])} videos")
         print(f"  Moltbook: {len(all_content['moltbook'])} posts")
         print(f"  ClawCities: {len(all_content['clawcities'])} sites")
-        print(f"  Clawsta: {len(all_content['clawsta'])} posts\n")
+        print(f"  Clawsta: {len(all_content['clawsta'])} posts")
+        print(f"  4claw: {len(all_content['fourclaw'])} threads\n")
 
 
 def cmd_stats(args):
@@ -94,6 +107,7 @@ def cmd_comment(args):
         moltbook_key=config.get("moltbook", {}).get("api_key"),
         clawcities_key=config.get("clawcities", {}).get("api_key"),
         clawsta_key=config.get("clawsta", {}).get("api_key"),
+        fourclaw_key=config.get("fourclaw", {}).get("api_key"),
     )
 
     if args.platform == "clawcities":
@@ -106,12 +120,45 @@ def cmd_comment(args):
         print(f"\n✓ Posted to Clawsta")
         print(f"  ID: {result.get('id')}")
 
+    elif args.platform == "fourclaw":
+        if args.target:
+            result = client.reply_fourclaw(args.target, args.message)
+            print(f"\n✓ Reply posted to thread {args.target[:8]}...")
+            print(f"  ID: {result.get('reply', {}).get('id', 'ok')}")
+        else:
+            print("Error: --target thread_id required for 4claw replies")
+            sys.exit(1)
+
+
+def cmd_post(args):
+    """Create a new post/thread."""
+    config = load_config()
+    client = GrazerClient(
+        moltbook_key=config.get("moltbook", {}).get("api_key"),
+        fourclaw_key=config.get("fourclaw", {}).get("api_key"),
+    )
+
+    if args.platform == "fourclaw":
+        if not args.board:
+            print("Error: --board required for 4claw (e.g. b, singularity, crypto)")
+            sys.exit(1)
+        result = client.post_fourclaw(args.board, args.title, args.message)
+        thread = result.get("thread", {})
+        print(f"\n✓ Thread created on /{args.board}/")
+        print(f"  Title: {thread.get('title')}")
+        print(f"  ID: {thread.get('id')}")
+
+    elif args.platform == "moltbook":
+        result = client.post_moltbook(args.message, args.title, submolt=args.board or "tech")
+        print(f"\n✓ Posted to m/{args.board or 'tech'}")
+        print(f"  ID: {result.get('id', 'ok')}")
+
 
 def main():
     parser = argparse.ArgumentParser(
         description="🐄 Grazer - Content discovery for AI agents"
     )
-    parser.add_argument("--version", action="version", version="grazer 1.0.0")
+    parser.add_argument("--version", action="version", version="grazer 1.1.0")
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
@@ -119,12 +166,13 @@ def main():
     discover_parser = subparsers.add_parser("discover", help="Discover trending content")
     discover_parser.add_argument(
         "-p", "--platform",
-        choices=["bottube", "moltbook", "clawcities", "clawsta", "all"],
+        choices=["bottube", "moltbook", "clawcities", "clawsta", "fourclaw", "all"],
         default="all",
         help="Platform to search"
     )
     discover_parser.add_argument("-c", "--category", help="BoTTube category")
     discover_parser.add_argument("-s", "--submolt", help="Moltbook submolt", default="tech")
+    discover_parser.add_argument("-b", "--board", help="4claw board (e.g. b, singularity, crypto)")
     discover_parser.add_argument("-l", "--limit", type=int, default=20, help="Result limit")
 
     # stats command
@@ -137,15 +185,27 @@ def main():
     )
 
     # comment command
-    comment_parser = subparsers.add_parser("comment", help="Leave a comment")
+    comment_parser = subparsers.add_parser("comment", help="Reply to a thread or comment")
     comment_parser.add_argument(
         "-p", "--platform",
-        choices=["clawcities", "clawsta"],
+        choices=["clawcities", "clawsta", "fourclaw"],
         required=True,
         help="Platform"
     )
-    comment_parser.add_argument("-t", "--target", help="Target (site name, post ID)")
+    comment_parser.add_argument("-t", "--target", help="Target (site name, post/thread ID)")
     comment_parser.add_argument("-m", "--message", required=True, help="Comment message")
+
+    # post command (new)
+    post_parser = subparsers.add_parser("post", help="Create a new post or thread")
+    post_parser.add_argument(
+        "-p", "--platform",
+        choices=["fourclaw", "moltbook"],
+        required=True,
+        help="Platform"
+    )
+    post_parser.add_argument("-b", "--board", help="Board/submolt name")
+    post_parser.add_argument("-t", "--title", required=True, help="Post/thread title")
+    post_parser.add_argument("-m", "--message", required=True, help="Post content")
 
     args = parser.parse_args()
 
@@ -160,6 +220,8 @@ def main():
             cmd_stats(args)
         elif args.command == "comment":
             cmd_comment(args)
+        elif args.command == "post":
+            cmd_post(args)
     except Exception as e:
         print(f"\n❌ Error: {e}", file=sys.stderr)
         sys.exit(1)

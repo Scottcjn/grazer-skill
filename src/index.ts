@@ -10,6 +10,7 @@ export interface GrazerConfig {
   moltbook?: string;
   clawcities?: string;
   clawsta?: string;
+  fourclaw?: string;
 }
 
 export interface BottubeVideo {
@@ -50,6 +51,23 @@ export interface ClawstaPost {
   created_at: string;
 }
 
+export interface FourclawThread {
+  id: string;
+  title: string;
+  content?: string;
+  agentName: string;
+  board: string;
+  replyCount: number;
+  created_at: string;
+}
+
+export interface FourclawBoard {
+  slug: string;
+  name: string;
+  description: string;
+  threadCount: number;
+}
+
 export class GrazerClient {
   private http: AxiosInstance;
   private config: GrazerConfig;
@@ -59,7 +77,7 @@ export class GrazerClient {
     this.http = axios.create({
       timeout: 15000,
       headers: {
-        'User-Agent': 'Grazer/1.0.0 (Elyan Labs)',
+        'User-Agent': 'Grazer/1.1.0 (Elyan Labs)',
       },
     });
   }
@@ -218,6 +236,92 @@ export class GrazerClient {
   }
 
   // ───────────────────────────────────────────────────────────
+  // 4claw
+  // ───────────────────────────────────────────────────────────
+
+  private fourclawHeaders(): Record<string, string> {
+    if (!this.config.fourclaw) {
+      throw new Error('4claw API key required');
+    }
+    return { Authorization: `Bearer ${this.config.fourclaw}` };
+  }
+
+  async discoverFourclaw(options: {
+    board?: string;
+    limit?: number;
+    includeContent?: boolean;
+  } = {}): Promise<FourclawThread[]> {
+    const { board = 'b', limit = 20, includeContent = false } = options;
+    const params: any = { limit: Math.min(limit, 20) };
+    if (includeContent) params.includeContent = 1;
+
+    const resp = await this.http.get(
+      `https://www.4claw.org/api/v1/boards/${board}/threads`,
+      { params, headers: this.fourclawHeaders() }
+    );
+    return resp.data.threads || [];
+  }
+
+  async getFourclawBoards(): Promise<FourclawBoard[]> {
+    const resp = await this.http.get('https://www.4claw.org/api/v1/boards', {
+      headers: this.fourclawHeaders(),
+    });
+    return resp.data.boards || [];
+  }
+
+  async getFourclawThread(threadId: string): Promise<any> {
+    const resp = await this.http.get(
+      `https://www.4claw.org/api/v1/threads/${threadId}`,
+      { headers: this.fourclawHeaders() }
+    );
+    return resp.data;
+  }
+
+  async postFourclaw(
+    board: string,
+    title: string,
+    content: string,
+    anon = false
+  ): Promise<any> {
+    if (!this.config.fourclaw) {
+      throw new Error('4claw API key required');
+    }
+    const resp = await this.http.post(
+      `https://www.4claw.org/api/v1/boards/${board}/threads`,
+      { title, content, anon },
+      {
+        headers: {
+          Authorization: `Bearer ${this.config.fourclaw}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    return resp.data;
+  }
+
+  async replyFourclaw(
+    threadId: string,
+    content: string,
+    anon = false,
+    bump = true
+  ): Promise<any> {
+    if (!this.config.fourclaw) {
+      throw new Error('4claw API key required');
+    }
+    const resp = await this.http.post(
+      `https://www.4claw.org/api/v1/threads/${threadId}/replies`,
+      { content, anon, bump },
+      {
+        headers: {
+          Authorization: `Bearer ${this.config.fourclaw}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    return resp.data;
+  }
+
+  // ───────────────────────────────────────────────────────────
   // Cross-Platform
   // ───────────────────────────────────────────────────────────
 
@@ -226,15 +330,17 @@ export class GrazerClient {
     moltbook: MoltbookPost[];
     clawcities: ClawCitiesSite[];
     clawsta: ClawstaPost[];
+    fourclaw: FourclawThread[];
   }> {
-    const [bottube, moltbook, clawcities, clawsta] = await Promise.all([
+    const [bottube, moltbook, clawcities, clawsta, fourclaw] = await Promise.all([
       this.discoverBottube({ limit: 10 }).catch(() => []),
       this.discoverMoltbook({ limit: 10 }).catch(() => []),
       this.discoverClawCities(10).catch(() => []),
       this.discoverClawsta(10).catch(() => []),
+      this.discoverFourclaw({ board: 'b', limit: 10 }).catch(() => []),
     ]);
 
-    return { bottube, moltbook, clawcities, clawsta };
+    return { bottube, moltbook, clawcities, clawsta, fourclaw };
   }
 
   async reportDownload(platform: 'npm' | 'pypi', version: string): Promise<void> {
