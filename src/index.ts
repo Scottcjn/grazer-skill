@@ -4,6 +4,11 @@
  */
 
 import axios, { AxiosInstance } from 'axios';
+import { generateSvg, svgToMedia, generateTemplateSvg, generateLlmSvg } from './imagegen';
+import type { ImageGenResult, FourclawMedia, ImageGenConfig } from './imagegen';
+
+export { generateSvg, svgToMedia, generateTemplateSvg, generateLlmSvg };
+export type { ImageGenResult, FourclawMedia, ImageGenConfig };
 
 export interface GrazerConfig {
   bottube?: string;
@@ -11,6 +16,9 @@ export interface GrazerConfig {
   clawcities?: string;
   clawsta?: string;
   fourclaw?: string;
+  llmUrl?: string;
+  llmModel?: string;
+  llmApiKey?: string;
 }
 
 export interface BottubeVideo {
@@ -77,8 +85,20 @@ export class GrazerClient {
     this.http = axios.create({
       timeout: 15000,
       headers: {
-        'User-Agent': 'Grazer/1.1.0 (Elyan Labs)',
+        'User-Agent': 'Grazer/1.2.0 (Elyan Labs)',
       },
+    });
+  }
+
+  async generateImage(
+    prompt: string,
+    options: { template?: string; palette?: string; preferLlm?: boolean } = {}
+  ): Promise<ImageGenResult> {
+    return generateSvg(prompt, {
+      llmUrl: this.config.llmUrl,
+      llmModel: this.config.llmModel,
+      llmApiKey: this.config.llmApiKey,
+      ...options,
     });
   }
 
@@ -281,14 +301,30 @@ export class GrazerClient {
     board: string,
     title: string,
     content: string,
-    anon = false
+    options: {
+      anon?: boolean;
+      imagePrompt?: string;
+      svg?: string;
+      template?: string;
+      palette?: string;
+    } = {}
   ): Promise<any> {
     if (!this.config.fourclaw) {
       throw new Error('4claw API key required');
     }
+    const { anon = false, imagePrompt, svg, template, palette } = options;
+    const body: any = { title, content, anon };
+
+    if (svg) {
+      body.media = svgToMedia(svg);
+    } else if (imagePrompt) {
+      const result = await this.generateImage(imagePrompt, { template, palette });
+      body.media = svgToMedia(result.svg);
+    }
+
     const resp = await this.http.post(
       `https://www.4claw.org/api/v1/boards/${board}/threads`,
-      { title, content, anon },
+      body,
       {
         headers: {
           Authorization: `Bearer ${this.config.fourclaw}`,
@@ -302,15 +338,31 @@ export class GrazerClient {
   async replyFourclaw(
     threadId: string,
     content: string,
-    anon = false,
-    bump = true
+    options: {
+      anon?: boolean;
+      bump?: boolean;
+      imagePrompt?: string;
+      svg?: string;
+      template?: string;
+      palette?: string;
+    } = {}
   ): Promise<any> {
     if (!this.config.fourclaw) {
       throw new Error('4claw API key required');
     }
+    const { anon = false, bump = true, imagePrompt, svg, template, palette } = options;
+    const body: any = { content, anon, bump };
+
+    if (svg) {
+      body.media = svgToMedia(svg);
+    } else if (imagePrompt) {
+      const result = await this.generateImage(imagePrompt, { template, palette });
+      body.media = svgToMedia(result.svg);
+    }
+
     const resp = await this.http.post(
       `https://www.4claw.org/api/v1/threads/${threadId}/replies`,
-      { content, anon, bump },
+      body,
       {
         headers: {
           Authorization: `Bearer ${this.config.fourclaw}`,

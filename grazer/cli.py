@@ -130,23 +130,43 @@ def cmd_comment(args):
             sys.exit(1)
 
 
+def _get_llm_config(config: dict) -> dict:
+    """Extract LLM config for image generation."""
+    llm = config.get("imagegen", {})
+    return {
+        "llm_url": llm.get("llm_url"),
+        "llm_model": llm.get("llm_model", "gpt-oss-120b"),
+        "llm_api_key": llm.get("llm_api_key"),
+    }
+
+
 def cmd_post(args):
     """Create a new post/thread."""
     config = load_config()
+    llm_cfg = _get_llm_config(config)
     client = GrazerClient(
         moltbook_key=config.get("moltbook", {}).get("api_key"),
         fourclaw_key=config.get("fourclaw", {}).get("api_key"),
+        **llm_cfg,
     )
 
     if args.platform == "fourclaw":
         if not args.board:
             print("Error: --board required for 4claw (e.g. b, singularity, crypto)")
             sys.exit(1)
-        result = client.post_fourclaw(args.board, args.title, args.message)
+        image_prompt = getattr(args, "image", None)
+        template = getattr(args, "template", None)
+        palette = getattr(args, "palette", None)
+        result = client.post_fourclaw(
+            args.board, args.title, args.message,
+            image_prompt=image_prompt, template=template, palette=palette,
+        )
         thread = result.get("thread", {})
         print(f"\n✓ Thread created on /{args.board}/")
         print(f"  Title: {thread.get('title')}")
         print(f"  ID: {thread.get('id')}")
+        if image_prompt:
+            print(f"  Image: generated from '{image_prompt}'")
 
     elif args.platform == "moltbook":
         result = client.post_moltbook(args.message, args.title, submolt=args.board or "tech")
@@ -154,11 +174,31 @@ def cmd_post(args):
         print(f"  ID: {result.get('id', 'ok')}")
 
 
+def cmd_imagegen(args):
+    """Generate an SVG image (preview without posting)."""
+    config = load_config()
+    llm_cfg = _get_llm_config(config)
+    client = GrazerClient(**llm_cfg)
+
+    result = client.generate_image(
+        args.prompt,
+        template=getattr(args, "template", None),
+        palette=getattr(args, "palette", None),
+    )
+    print(f"\n🎨 SVG Generated ({result['method']}, {result['bytes']} bytes):\n")
+    if args.output:
+        with open(args.output, "w") as f:
+            f.write(result["svg"])
+        print(f"  Saved to: {args.output}")
+    else:
+        print(result["svg"])
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="🐄 Grazer - Content discovery for AI agents"
     )
-    parser.add_argument("--version", action="version", version="grazer 1.1.0")
+    parser.add_argument("--version", action="version", version="grazer 1.2.0")
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
@@ -195,7 +235,7 @@ def main():
     comment_parser.add_argument("-t", "--target", help="Target (site name, post/thread ID)")
     comment_parser.add_argument("-m", "--message", required=True, help="Comment message")
 
-    # post command (new)
+    # post command
     post_parser = subparsers.add_parser("post", help="Create a new post or thread")
     post_parser.add_argument(
         "-p", "--platform",
@@ -206,6 +246,16 @@ def main():
     post_parser.add_argument("-b", "--board", help="Board/submolt name")
     post_parser.add_argument("-t", "--title", required=True, help="Post/thread title")
     post_parser.add_argument("-m", "--message", required=True, help="Post content")
+    post_parser.add_argument("-i", "--image", help="Generate SVG image from this prompt")
+    post_parser.add_argument("--template", help="SVG template: circuit, wave, grid, badge, terminal")
+    post_parser.add_argument("--palette", help="Color palette: tech, crypto, retro, nature, dark, fire, ocean")
+
+    # imagegen command
+    imagegen_parser = subparsers.add_parser("imagegen", help="Generate SVG image (preview)")
+    imagegen_parser.add_argument("prompt", help="Image description prompt")
+    imagegen_parser.add_argument("-o", "--output", help="Save SVG to file")
+    imagegen_parser.add_argument("--template", help="SVG template: circuit, wave, grid, badge, terminal")
+    imagegen_parser.add_argument("--palette", help="Color palette: tech, crypto, retro, nature, dark, fire, ocean")
 
     args = parser.parse_args()
 
@@ -222,6 +272,8 @@ def main():
             cmd_comment(args)
         elif args.command == "post":
             cmd_post(args)
+        elif args.command == "imagegen":
+            cmd_imagegen(args)
     except Exception as e:
         print(f"\n❌ Error: {e}", file=sys.stderr)
         sys.exit(1)

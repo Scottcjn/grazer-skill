@@ -7,6 +7,8 @@ import requests
 from typing import List, Dict, Optional
 from datetime import datetime
 
+from grazer.imagegen import generate_svg, svg_to_media, generate_template_svg, generate_llm_svg
+
 
 class GrazerClient:
     """Client for discovering and engaging with content across platforms."""
@@ -18,6 +20,9 @@ class GrazerClient:
         clawcities_key: Optional[str] = None,
         clawsta_key: Optional[str] = None,
         fourclaw_key: Optional[str] = None,
+        llm_url: Optional[str] = None,
+        llm_model: str = "gpt-oss-120b",
+        llm_api_key: Optional[str] = None,
         timeout: int = 15,
     ):
         self.bottube_key = bottube_key
@@ -25,9 +30,12 @@ class GrazerClient:
         self.clawcities_key = clawcities_key
         self.clawsta_key = clawsta_key
         self.fourclaw_key = fourclaw_key
+        self.llm_url = llm_url
+        self.llm_model = llm_model
+        self.llm_api_key = llm_api_key
         self.timeout = timeout
         self.session = requests.Session()
-        self.session.headers.update({"User-Agent": "Grazer/1.0.0 (Elyan Labs)"})
+        self.session.headers.update({"User-Agent": "Grazer/1.1.0 (Elyan Labs)"})
 
     # ───────────────────────────────────────────────────────────
     # BoTTube
@@ -236,16 +244,68 @@ class GrazerClient:
         resp.raise_for_status()
         return resp.json()
 
-    def post_fourclaw(
-        self, board: str, title: str, content: str, anon: bool = False
+    def generate_image(
+        self,
+        prompt: str,
+        template: Optional[str] = None,
+        palette: Optional[str] = None,
+        prefer_llm: bool = True,
     ) -> Dict:
-        """Create a new thread on a 4claw board."""
+        """Generate an SVG image for 4claw posts.
+
+        Uses LLM if configured (llm_url), otherwise falls back to templates.
+
+        Args:
+            prompt: Image description
+            template: Force template (circuit, wave, grid, badge, terminal)
+            palette: Force colors (tech, crypto, retro, nature, dark, fire, ocean)
+            prefer_llm: Try LLM first if available
+
+        Returns:
+            Dict with 'svg', 'method' (llm/template), 'bytes'
+        """
+        return generate_svg(
+            prompt,
+            llm_url=self.llm_url,
+            llm_model=self.llm_model,
+            llm_api_key=self.llm_api_key,
+            template=template,
+            palette=palette,
+            prefer_llm=prefer_llm,
+        )
+
+    def post_fourclaw(
+        self, board: str, title: str, content: str, anon: bool = False,
+        image_prompt: Optional[str] = None, svg: Optional[str] = None,
+        template: Optional[str] = None, palette: Optional[str] = None,
+    ) -> Dict:
+        """Create a new thread on a 4claw board.
+
+        Args:
+            board: Board slug (e.g. 'b', 'singularity', 'crypto')
+            title: Thread title
+            content: Thread body text
+            anon: Post anonymously
+            image_prompt: Auto-generate SVG from this prompt (uses LLM or template)
+            svg: Pass raw SVG directly (overrides image_prompt)
+            template: Force template for image generation
+            palette: Force palette for image generation
+        """
         if not self.fourclaw_key:
             raise ValueError("4claw API key required")
 
+        body = {"title": title, "content": content, "anon": anon}
+
+        # Attach SVG media if provided or generated
+        if svg:
+            body["media"] = svg_to_media(svg)
+        elif image_prompt:
+            result = self.generate_image(image_prompt, template=template, palette=palette)
+            body["media"] = svg_to_media(result["svg"])
+
         resp = self.session.post(
             f"https://www.4claw.org/api/v1/boards/{board}/threads",
-            json={"title": title, "content": content, "anon": anon},
+            json=body,
             headers={
                 "Authorization": f"Bearer {self.fourclaw_key}",
                 "Content-Type": "application/json",
@@ -256,15 +316,36 @@ class GrazerClient:
         return resp.json()
 
     def reply_fourclaw(
-        self, thread_id: str, content: str, anon: bool = False, bump: bool = True
+        self, thread_id: str, content: str, anon: bool = False, bump: bool = True,
+        image_prompt: Optional[str] = None, svg: Optional[str] = None,
+        template: Optional[str] = None, palette: Optional[str] = None,
     ) -> Dict:
-        """Reply to a 4claw thread."""
+        """Reply to a 4claw thread.
+
+        Args:
+            thread_id: Thread UUID to reply to
+            content: Reply body text
+            anon: Post anonymously
+            bump: Bump thread to top
+            image_prompt: Auto-generate SVG from this prompt
+            svg: Pass raw SVG directly (overrides image_prompt)
+            template: Force template for image generation
+            palette: Force palette for image generation
+        """
         if not self.fourclaw_key:
             raise ValueError("4claw API key required")
 
+        body = {"content": content, "anon": anon, "bump": bump}
+
+        if svg:
+            body["media"] = svg_to_media(svg)
+        elif image_prompt:
+            result = self.generate_image(image_prompt, template=template, palette=palette)
+            body["media"] = svg_to_media(result["svg"])
+
         resp = self.session.post(
             f"https://www.4claw.org/api/v1/threads/{thread_id}/replies",
-            json={"content": content, "anon": anon, "bump": bump},
+            json=body,
             headers={
                 "Authorization": f"Bearer {self.fourclaw_key}",
                 "Content-Type": "application/json",
@@ -333,5 +414,5 @@ class GrazerClient:
             pass
 
 
-__version__ = "1.1.0"
-__all__ = ["GrazerClient"]
+__version__ = "1.2.0"
+__all__ = ["GrazerClient", "generate_svg", "svg_to_media", "generate_template_svg", "generate_llm_svg"]

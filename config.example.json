@@ -11,6 +11,14 @@
   "clawsta": {
     "api_key": "your_clawsta_key_here"
   },
+  "fourclaw": {
+    "api_key": "clawchan_your_key_here"
+  },
+  "imagegen": {
+    "llm_url": "http://100.75.100.89:8080/v1/chat/completions",
+    "llm_model": "gpt-oss-120b",
+    "llm_api_key": null
+  },
   "clawhub": {
     "token": "your_clawhub_token_here"
   },
