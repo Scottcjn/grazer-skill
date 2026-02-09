@@ -174,6 +174,63 @@ def cmd_post(args):
         print(f"  ID: {result.get('id', 'ok')}")
 
 
+def cmd_clawhub(args):
+    """ClawHub skill registry commands."""
+    config = load_config()
+    from grazer import GrazerClient
+
+    client = GrazerClient(clawhub_token=config.get("clawhub", {}).get("token"))
+
+    if args.action == "search":
+        query = " ".join(args.query)
+        skills = client.search_clawhub(query, limit=args.limit)
+        print(f"\n🐙 ClawHub Search: \"{query}\"\n")
+        if not skills:
+            print("  No skills found.")
+            return
+        for s in skills:
+            name = s.get("displayName", s.get("slug", "?"))
+            slug = s.get("slug", "?")
+            summary = s.get("summary", "")
+            if summary and len(summary) > 80:
+                summary = summary[:77] + "..."
+            downloads = s.get("stats", {}).get("downloads", 0)
+            versions = s.get("stats", {}).get("versions", 0)
+            print(f"  {name} ({slug})")
+            if summary:
+                print(f"    {summary}")
+            print(f"    {downloads} downloads | {versions} versions | https://clawhub.ai/{slug}\n")
+
+    elif args.action == "trending":
+        skills = client.trending_clawhub(limit=args.limit)
+        print("\n🐙 ClawHub Trending Skills:\n")
+        for i, s in enumerate(skills, 1):
+            name = s.get("displayName", s.get("slug", "?"))
+            downloads = s.get("stats", {}).get("downloads", 0)
+            print(f"  {i}. {name} ({downloads} downloads)")
+
+    elif args.action == "info":
+        if not args.query:
+            print("Error: skill slug required (e.g. grazer clawhub info grazer)")
+            sys.exit(1)
+        slug = args.query[0]
+        skill = client.get_clawhub_skill(slug)
+        info = skill.get("skill", skill)
+        owner = skill.get("owner", {})
+        latest = skill.get("latestVersion", {})
+        print(f"\n🐙 {info.get('displayName', slug)}")
+        print(f"  Slug: {info.get('slug')}")
+        if info.get("summary"):
+            print(f"  Summary: {info['summary']}")
+        print(f"  Owner: @{owner.get('handle', '?')}")
+        print(f"  Version: {latest.get('version', '?')}")
+        print(f"  Downloads: {info.get('stats', {}).get('downloads', 0)}")
+        print(f"  Stars: {info.get('stats', {}).get('stars', 0)}")
+        if latest.get("changelog"):
+            print(f"  Changelog: {latest['changelog']}")
+        print(f"  URL: https://clawhub.ai/{info.get('slug')}\n")
+
+
 def cmd_imagegen(args):
     """Generate an SVG image (preview without posting)."""
     config = load_config()
@@ -198,7 +255,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="🐄 Grazer - Content discovery for AI agents"
     )
-    parser.add_argument("--version", action="version", version="grazer 1.2.0")
+    parser.add_argument("--version", action="version", version="grazer 1.3.0")
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
@@ -250,6 +307,16 @@ def main():
     post_parser.add_argument("--template", help="SVG template: circuit, wave, grid, badge, terminal")
     post_parser.add_argument("--palette", help="Color palette: tech, crypto, retro, nature, dark, fire, ocean")
 
+    # clawhub command
+    clawhub_parser = subparsers.add_parser("clawhub", help="ClawHub skill registry")
+    clawhub_parser.add_argument(
+        "action",
+        choices=["search", "trending", "info"],
+        help="Action: search, trending, or info"
+    )
+    clawhub_parser.add_argument("query", nargs="*", help="Search query or skill slug")
+    clawhub_parser.add_argument("-l", "--limit", type=int, default=20, help="Result limit")
+
     # imagegen command
     imagegen_parser = subparsers.add_parser("imagegen", help="Generate SVG image (preview)")
     imagegen_parser.add_argument("prompt", help="Image description prompt")
@@ -272,6 +339,8 @@ def main():
             cmd_comment(args)
         elif args.command == "post":
             cmd_post(args)
+        elif args.command == "clawhub":
+            cmd_clawhub(args)
         elif args.command == "imagegen":
             cmd_imagegen(args)
     except Exception as e:

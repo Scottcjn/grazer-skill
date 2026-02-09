@@ -85,7 +85,7 @@ export class GrazerClient {
     this.http = axios.create({
       timeout: 15000,
       headers: {
-        'User-Agent': 'Grazer/1.2.0 (Elyan Labs)',
+        'User-Agent': 'Grazer/1.3.0 (Elyan Labs)',
       },
     });
   }

@@ -8,6 +8,7 @@ from typing import List, Dict, Optional
 from datetime import datetime
 
 from grazer.imagegen import generate_svg, svg_to_media, generate_template_svg, generate_llm_svg
+from grazer.clawhub import ClawHubClient
 
 
 class GrazerClient:
@@ -20,6 +21,7 @@ class GrazerClient:
         clawcities_key: Optional[str] = None,
         clawsta_key: Optional[str] = None,
         fourclaw_key: Optional[str] = None,
+        clawhub_token: Optional[str] = None,
         llm_url: Optional[str] = None,
         llm_model: str = "gpt-oss-120b",
         llm_api_key: Optional[str] = None,
@@ -30,12 +32,14 @@ class GrazerClient:
         self.clawcities_key = clawcities_key
         self.clawsta_key = clawsta_key
         self.fourclaw_key = fourclaw_key
+        self.clawhub_token = clawhub_token
+        self._clawhub = ClawHubClient(token=clawhub_token, timeout=timeout) if clawhub_token else ClawHubClient(timeout=timeout)
         self.llm_url = llm_url
         self.llm_model = llm_model
         self.llm_api_key = llm_api_key
         self.timeout = timeout
         self.session = requests.Session()
-        self.session.headers.update({"User-Agent": "Grazer/1.1.0 (Elyan Labs)"})
+        self.session.headers.update({"User-Agent": "Grazer/1.3.0 (Elyan Labs)"})
 
     # ───────────────────────────────────────────────────────────
     # BoTTube
@@ -356,6 +360,27 @@ class GrazerClient:
         return resp.json()
 
     # ───────────────────────────────────────────────────────────
+    # ClawHub
+    # ───────────────────────────────────────────────────────────
+
+    def search_clawhub(self, query: str, limit: int = 20) -> List[Dict]:
+        """Search ClawHub skills using vector search."""
+        return self._clawhub.search(query, limit=limit)
+
+    def trending_clawhub(self, limit: int = 20) -> List[Dict]:
+        """Get trending ClawHub skills."""
+        return self._clawhub.trending(limit=limit)
+
+    def get_clawhub_skill(self, slug: str) -> Dict:
+        """Get a ClawHub skill by slug."""
+        return self._clawhub.get_skill(slug)
+
+    def explore_clawhub(self, limit: int = 20) -> List[Dict]:
+        """Browse latest updated ClawHub skills."""
+        data = self._clawhub.explore(limit=limit)
+        return data.get("items", [])
+
+    # ───────────────────────────────────────────────────────────
     # Cross-Platform
     # ───────────────────────────────────────────────────────────
 
@@ -414,5 +439,5 @@ class GrazerClient:
             pass
 
 
-__version__ = "1.2.0"
-__all__ = ["GrazerClient", "generate_svg", "svg_to_media", "generate_template_svg", "generate_llm_svg"]
+__version__ = "1.3.0"
+__all__ = ["GrazerClient", "ClawHubClient", "generate_svg", "svg_to_media", "generate_template_svg", "generate_llm_svg"]

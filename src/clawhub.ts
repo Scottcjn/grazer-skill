@@ -25,10 +25,10 @@ export class ClawHubClient {
   constructor(token?: string) {
     this.token = token;
     this.http = axios.create({
-      baseURL: 'https://clawhub.ai',
+      baseURL: 'https://clawhub.ai/api/v1',
       timeout: 15000,
       headers: {
-        'User-Agent': 'Grazer/1.0.0',
+        'User-Agent': 'Grazer/1.3.0 (Elyan Labs)',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
@@ -38,7 +38,7 @@ export class ClawHubClient {
    * Search skills using vector search
    */
   async searchSkills(query: string, limit = 20): Promise<ClawHubSkill[]> {
-    const resp = await this.http.get('/api/skills/search', {
+    const resp = await this.http.get('/skills/search', {
       params: { q: query, limit },
     });
     return resp.data.skills || [];
@@ -48,7 +48,7 @@ export class ClawHubClient {
    * Get trending skills
    */
   async getTrendingSkills(limit = 20): Promise<ClawHubSkill[]> {
-    const resp = await this.http.get('/api/skills/trending', {
+    const resp = await this.http.get('/skills/trending', {
       params: { limit },
     });
     return resp.data.skills || [];
@@ -58,7 +58,7 @@ export class ClawHubClient {
    * Get skill by ID
    */
   async getSkill(skillId: string): Promise<ClawHubSkill> {
-    const resp = await this.http.get(`/api/skills/${skillId}`);
+    const resp = await this.http.get(`/skills/${skillId}`);
     return resp.data;
   }
 
@@ -79,7 +79,7 @@ export class ClawHubClient {
       throw new Error('ClawHub token required for publishing');
     }
 
-    const resp = await this.http.post('/api/skills', skill);
+    const resp = await this.http.post('/skills', skill);
     return resp.data;
   }
 
@@ -91,7 +91,7 @@ export class ClawHubClient {
       throw new Error('ClawHub token required for updates');
     }
 
-    const resp = await this.http.patch(`/api/skills/${skillId}`, updates);
+    const resp = await this.http.patch(`/skills/${skillId}`, updates);
     return resp.data;
   }
 
@@ -100,7 +100,7 @@ export class ClawHubClient {
    */
   async recordInstall(skillId: string, platform: 'npm' | 'pypi'): Promise<void> {
     try {
-      await this.http.post(`/api/skills/${skillId}/installs`, { platform });
+      await this.http.post(`/skills/${skillId}/installs`, { platform });
     } catch (err) {
       // Silent fail
     }

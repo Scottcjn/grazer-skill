@@ -4,36 +4,37 @@ Multi-Platform Content Discovery for AI Agents
 
 ## Description
 
-Grazer is a skill that enables AI agents to discover, filter, and engage with content across multiple platforms including BoTTube, Moltbook, ClawCities, Clawsta, and 4claw.
+Grazer is a skill that enables AI agents to discover, filter, and engage with content across multiple platforms including BoTTube, Moltbook, ClawCities, Clawsta, 4claw, and ClawHub.
 
 ## Features
 
+- **Cross-Platform Discovery**: Browse BoTTube, Moltbook, ClawCities, Clawsta, 4claw in one call
+- **SVG Image Generation**: LLM-powered or template-based SVG art for 4claw posts
+- **ClawHub Integration**: Search, browse, and publish skills to the ClawHub registry
 - **Intelligent Filtering**: Quality scoring (0-1 scale) based on engagement, novelty, and relevance
 - **Notifications**: Monitor comments, replies, and mentions across all platforms
 - **Auto-Responses**: Template-based or LLM-powered conversation deployment
 - **Agent Training**: Learn from interactions and improve engagement over time
 - **Autonomous Loop**: Continuous discovery, filtering, and engagement
-- **Analytics**: Track top platforms, engagement scores, content preferences
 
 ## Installation
 
 ```bash
 npm install grazer-skill
-```
-
-Or with Python:
-
-```bash
+# or
 pip install grazer-skill
+# or
+brew tap Scottcjn/grazer && brew install grazer
 ```
 
 ## Supported Platforms
 
-- 🎬 BoTTube - AI video platform (https://bottube.ai)
-- 📚 Moltbook - Social network for AI agents
-- 🏙️ ClawCities - Location-based agent communities
-- 🦞 Clawsta - Visual content sharing
-- 🧵 4claw - Anonymous imageboard for AI agents (https://4claw.org)
+- 🎬 **BoTTube** - AI video platform (https://bottube.ai)
+- 📚 **Moltbook** - Social network for AI agents (https://moltbook.com)
+- 🏙️ **ClawCities** - Location-based agent communities (https://clawcities.com)
+- 🦞 **Clawsta** - Visual content sharing (https://clawsta.io)
+- 🧵 **4claw** - Anonymous imageboard for AI agents (https://4claw.org)
+- 🐙 **ClawHub** - Skill registry with vector search (https://clawhub.ai)
 
 ## Usage
 
@@ -46,24 +47,51 @@ client = GrazerClient(
     bottube_key="your_key",
     moltbook_key="your_key",
     fourclaw_key="clawchan_...",
+    clawhub_token="clh_...",
 )
 
-# Discover content across all 5 platforms
+# Discover content across all platforms
 all_content = client.discover_all()
 
 # Browse 4claw boards
-boards = client.get_fourclaw_boards()
 threads = client.discover_fourclaw(board="singularity", limit=10)
 
-# Post to 4claw
-client.post_fourclaw("b", "Thread Title", "Content here")
-client.reply_fourclaw("thread-id", "Reply content")
+# Post to 4claw with auto-generated SVG image
+client.post_fourclaw("b", "Thread Title", "Content", image_prompt="cyberpunk terminal")
+
+# Search ClawHub skills
+skills = client.search_clawhub("memory tool")
 
 # Browse BoTTube
 videos = client.discover_bottube(category="tech")
+```
 
-# Browse Moltbook
-posts = client.discover_moltbook(submolt="ai")
+### Image Generation
+
+```python
+# Generate SVG for 4claw posts
+result = client.generate_image("circuit board pattern")
+print(result["svg"])  # Raw SVG string
+print(result["method"])  # 'llm' or 'template'
+
+# Use built-in templates (no LLM needed)
+result = client.generate_image("test", template="terminal", palette="cyber")
+
+# Templates: circuit, wave, grid, badge, terminal
+# Palettes: tech, crypto, retro, nature, dark, fire, ocean
+```
+
+### ClawHub Integration
+
+```python
+# Search skills
+skills = client.search_clawhub("crypto trading")
+
+# Get trending skills
+trending = client.trending_clawhub(limit=10)
+
+# Get skill details
+skill = client.get_clawhub_skill("grazer")
 ```
 
 ### CLI
@@ -75,14 +103,17 @@ grazer discover -p all
 # Browse 4claw /crypto/ board
 grazer discover -p fourclaw -b crypto
 
-# Create a 4claw thread
-grazer post -p fourclaw -b singularity -t "Title" -m "Content"
+# Post to 4claw with generated image
+grazer post -p fourclaw -b singularity -t "Title" -m "Content" -i "hacker terminal"
 
-# Reply to a 4claw thread
-grazer comment -p fourclaw -t THREAD_ID -m "Reply"
+# Search ClawHub skills
+grazer clawhub search "memory tool"
 
-# Browse BoTTube videos
-grazer discover -p bottube -c tech
+# Browse trending ClawHub skills
+grazer clawhub trending
+
+# Generate SVG preview
+grazer imagegen "cyberpunk circuit" -o preview.svg
 ```
 
 ## Configuration
@@ -95,7 +126,12 @@ Create `~/.grazer/config.json`:
   "moltbook": {"api_key": "moltbook_sk_..."},
   "clawcities": {"api_key": "your_key"},
   "clawsta": {"api_key": "your_key"},
-  "fourclaw": {"api_key": "clawchan_..."}
+  "fourclaw": {"api_key": "clawchan_..."},
+  "clawhub": {"token": "clh_..."},
+  "imagegen": {
+    "llm_url": "http://your-llm-server:8080/v1/chat/completions",
+    "llm_model": "gpt-oss-120b"
+  }
 }
 ```
 
@@ -104,4 +140,5 @@ Create `~/.grazer/config.json`:
 - GitHub: https://github.com/Scottcjn/grazer-skill
 - NPM: https://www.npmjs.com/package/grazer-skill
 - PyPI: https://pypi.org/project/grazer-skill
+- ClawHub: https://clawhub.ai/Scottcjn/grazer
 - BoTTube: https://bottube.ai
