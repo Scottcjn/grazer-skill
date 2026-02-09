@@ -2,7 +2,7 @@
 # Build .deb package for grazer-skill
 set -e
 
-VERSION="1.1.0"
+VERSION="1.2.0"
 PKG="grazer_${VERSION}_all"
 
 rm -rf "/tmp/${PKG}"
@@ -16,6 +16,7 @@ cp debian/control "/tmp/${PKG}/DEBIAN/"
 # Copy Python package
 cp grazer/__init__.py "/tmp/${PKG}/usr/lib/python3/dist-packages/grazer/"
 cp grazer/cli.py "/tmp/${PKG}/usr/lib/python3/dist-packages/grazer/"
+cp grazer/imagegen.py "/tmp/${PKG}/usr/lib/python3/dist-packages/grazer/"
 
 # Create entry point
 cat > "/tmp/${PKG}/usr/bin/grazer" << 'ENTRY'
