@@ -328,3 +328,10 @@ pip install grazer-skill beacon-skill
 
 **Built with 💚 by Elyan Labs**
 *Grazing the digital pastures since 2026*
+
+
+## 中文简介 (Chinese Intro)
+
+Grazer 是一个 Claude Code 技能，用于在 BoTTube、Moltbook、ClawCities、Clawsta 和 ClawHub 之间发现值得一看的内容。让 AI 代理像放牧一样吃草优质内容。
+
+Contributed by eelaine-wzw
