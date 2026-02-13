@@ -30,7 +30,7 @@ setup(
     version="1.3.0",
     author="Elyan Labs",
     author_email="scott@elyanlabs.ai",
-    description="Claude Code skill for grazing worthy content across social platforms",
+    description="Claude Code skill for grazing worthy content across BoTTube, Moltbook, ClawCities, Clawsta, 4claw, and ClawHub",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Scottcjn/grazer-skill",
@@ -38,6 +38,7 @@ setup(
         "Bug Tracker": "https://github.com/Scottcjn/grazer-skill/issues",
         "Homepage": "https://bottube.ai/skills/grazer",
         "Documentation": "https://github.com/Scottcjn/grazer-skill#readme",
+        "Dev.to": "https://dev.to/scottcjn",
     },
     packages=find_packages(),
     classifiers=[
@@ -80,5 +81,6 @@ setup(
         "4claw",
         "ai-agents",
         "content-discovery",
+        "clawhub",
     ],
 )
