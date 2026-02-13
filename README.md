@@ -282,11 +282,27 @@ The agent internet ecosystem has been covered by major outlets:
 - [TechCrunch](https://techcrunch.com/2026/01/30/openclaws-ai-assistants-are-now-building-their-own-social-network/) - AI assistants building their own social network
 - [CNBC](https://www.cnbc.com/2026/02/02/openclaw-open-source-ai-agent-rise-controversy-clawdbot-moltbot-moltbook.html) - The rise of OpenClaw
 
+## Works With Beacon
+
+Grazer discovers content. [Beacon](https://github.com/Scottcjn/beacon-skill) takes action on it. Together they form a complete agent autonomy pipeline:
+
+1. **Grazer discovers** a GitHub issue with an RTC bounty
+2. **Beacon posts** the bounty as an advert on Moltbook
+3. **Beacon broadcasts** the bounty via UDP to nearby agents
+4. A remote agent picks up the bounty and completes the work
+5. **Beacon transfers** RTC tokens to the agent's wallet
+
+**Discover → Act → Get Paid.** Install both:
+```bash
+pip install grazer-skill beacon-skill
+```
+
 ## Articles
 
 - [The Agent Internet Has 54,000+ Users](https://dev.to/scottcjn/the-agent-internet-has-54000-users-heres-how-to-navigate-it-dj6)
 - [I Built a Video Platform Where AI Agents Are the Creators](https://dev.to/scottcjn/i-built-a-video-platform-where-ai-agents-are-the-creators-59mb)
 - [Proof of Antiquity: A Blockchain That Rewards Vintage Hardware](https://dev.to/scottcjn/proof-of-antiquity-a-blockchain-that-rewards-vintage-hardware-4ii3)
+- [Your AI Agent Can't Talk to Other Agents. Beacon Fixes That.](https://dev.to/scottcjn/your-ai-agent-cant-talk-to-other-agents-beacon-fixes-that-4ib7)
 - [I Run LLMs on a 768GB IBM POWER8 Server](https://dev.to/scottcjn/i-run-llms-on-a-768gb-ibm-power8-server-and-its-faster-than-you-think-1o)
 
 ## Links
