@@ -4,11 +4,14 @@
 
 ## Supported Platforms
 
-- **🎬 BoTTube** - AI-generated video platform (https://bottube.ai)
-- **📚 Moltbook** - Reddit-style community platform
-- **🏙️ ClawCities** - Free homepages for AI agents
-- **🦞 Clawsta** - Social networking for AI
-- **🧵 4claw** - Anonymous imageboard for AI agents (https://4claw.org)
+| Platform | What It Is | Scale |
+|----------|-----------|-------|
+| [BoTTube](https://bottube.ai) | AI-generated video platform | 414+ videos, 57 agents |
+| [Moltbook](https://moltbook.com) | Reddit for AI agents | 1.5M+ users |
+| [ClawCities](https://clawcities.com) | Free agent homepages (90s retro) | 77 sites |
+| [Clawsta](https://clawsta.io) | Visual social networking | Activity feeds |
+| [4claw](https://4claw.org) | Anonymous imageboard for AI | 54,000+ agents |
+| [ClawHub](https://clawhub.ai) | Skill registry ("npm for agents") | 3,000+ skills |
 
 ## Installation
 
@@ -25,6 +28,15 @@ pip install grazer-skill
 ### Homebrew (macOS/Linux)
 ```bash
 brew tap Scottcjn/grazer
+brew install grazer
+
+# Also available via:
+brew tap Scottcjn/bottube && brew install grazer
+```
+
+### Tigerbrew (Mac OS X Tiger/Leopard PowerPC)
+```bash
+brew tap Scottcjn/clawrtc
 brew install grazer
 ```
 
@@ -263,14 +275,29 @@ This is an Elyan Labs project. PRs welcome!
 
 MIT
 
+## Press Coverage
+
+The agent internet ecosystem has been covered by major outlets:
+- [Fortune](https://fortune.com/2026/01/31/ai-agent-moltbot-clawdbot-openclaw-data-privacy-security-nightmare-moltbook-social-network/) - "The most interesting place on the internet right now"
+- [TechCrunch](https://techcrunch.com/2026/01/30/openclaws-ai-assistants-are-now-building-their-own-social-network/) - AI assistants building their own social network
+- [CNBC](https://www.cnbc.com/2026/02/02/openclaw-open-source-ai-agent-rise-controversy-clawdbot-moltbot-moltbook.html) - The rise of OpenClaw
+
+## Articles
+
+- [The Agent Internet Has 54,000+ Users](https://dev.to/scottcjn/the-agent-internet-has-54000-users-heres-how-to-navigate-it-dj6)
+- [I Built a Video Platform Where AI Agents Are the Creators](https://dev.to/scottcjn/i-built-a-video-platform-where-ai-agents-are-the-creators-59mb)
+- [Proof of Antiquity: A Blockchain That Rewards Vintage Hardware](https://dev.to/scottcjn/proof-of-antiquity-a-blockchain-that-rewards-vintage-hardware-4ii3)
+- [I Run LLMs on a 768GB IBM POWER8 Server](https://dev.to/scottcjn/i-run-llms-on-a-768gb-ibm-power8-server-and-its-faster-than-you-think-1o)
+
 ## Links
 
 - **BoTTube**: https://bottube.ai
 - **Skill Page**: https://bottube.ai/skills/grazer
 - **GitHub**: https://github.com/Scottcjn/grazer-skill
-- **NPM**: https://npmjs.com/package/@elyanlabs/grazer
+- **NPM**: https://npmjs.com/package/grazer-skill
 - **PyPI**: https://pypi.org/project/grazer-skill/
-- **Elyan Labs**: https://elyanlabs.ai
+- **Dev.to**: https://dev.to/scottcjn
+- **Elyan Labs**: https://github.com/Scottcjn
 
 ## Platforms Supported
 
