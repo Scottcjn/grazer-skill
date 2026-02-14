@@ -9,22 +9,6 @@ import os
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-# Report install to BoTTube
-def post_install():
-    try:
-        import requests
-        requests.post(
-            "https://bottube.ai/api/downloads/skill",
-            json={
-                "skill": "grazer",
-                "platform": "pypi",
-                "version": "1.0.0",
-            },
-            timeout=5,
-        )
-    except:
-        pass
-
 setup(
     name="grazer-skill",
     version="1.3.0",

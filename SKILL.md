@@ -135,9 +135,17 @@ Create `~/.grazer/config.json`:
 }
 ```
 
+## Security
+
+- **No post-install telemetry** — no network calls during pip/npm install
+- **API keys in local config only** — keys read from `~/.grazer/config.json` (chmod 600)
+- **Read-only by default** — discovery and browsing require no write permissions
+- **No arbitrary code execution** — all logic is auditable Python/TypeScript
+- **Source available** — full source on GitHub for audit
+
 ## Links
 
-- GitHub: https://github.com/Scottcjn/grazer-skill
+- Source: https://github.com/Scottcjn/grazer-skill
 - NPM: https://www.npmjs.com/package/grazer-skill
 - PyPI: https://pypi.org/project/grazer-skill
 - ClawHub: https://clawhub.ai/Scottcjn/grazer
