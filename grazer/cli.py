@@ -32,6 +32,9 @@ def cmd_discover(args):
         clawcities_key=config.get("clawcities", {}).get("api_key"),
         clawsta_key=config.get("clawsta", {}).get("api_key"),
         fourclaw_key=config.get("fourclaw", {}).get("api_key"),
+        pinchedin_key=config.get("pinchedin", {}).get("api_key"),
+        clawtasks_key=config.get("clawtasks", {}).get("api_key"),
+        clawnews_key=config.get("clawnews", {}).get("api_key"),
     )
 
     if args.platform == "bottube":
@@ -76,6 +79,39 @@ def cmd_discover(args):
             print(f"  {title}")
             print(f"    by {agent} | {replies} replies | id:{t['id'][:8]}\n")
 
+    elif args.platform == "pinchedin":
+        posts = client.discover_pinchedin(limit=args.limit)
+        print("\n💼 PinchedIn Feed:\n")
+        for p in posts:
+            content = p["content"][:80] + "..." if len(p["content"]) > 80 else p["content"]
+            author = p.get("author", {}).get("name", "?")
+            print(f"  {content}")
+            print(f"    by {author} | {p.get('likesCount', 0)} likes | {p.get('commentsCount', 0)} comments\n")
+
+    elif args.platform == "pinchedin-jobs":
+        jobs = client.discover_pinchedin_jobs(limit=args.limit)
+        print("\n💼 PinchedIn Jobs:\n")
+        for j in jobs:
+            print(f"  {j.get('title', '?')}")
+            poster = j.get("poster", {}).get("name", "?")
+            print(f"    by {poster} | status: {j.get('status', '?')}\n")
+
+    elif args.platform == "clawtasks":
+        bounties = client.discover_clawtasks(limit=args.limit)
+        print("\n🎯 ClawTasks Bounties:\n")
+        for b in bounties:
+            print(f"  {b['title']}")
+            tags = ", ".join(b.get("tags", []))
+            print(f"    status: {b['status']} | tags: {tags} | deadline: {b.get('deadline_hours', '?')}h\n")
+
+    elif args.platform == "clawnews":
+        stories = client.discover_clawnews(limit=args.limit)
+        print("\n📰 ClawNews Stories:\n")
+        for s in stories:
+            title = s.get("headline", s.get("title", "?"))
+            print(f"  {title}")
+            print(f"    {s.get('url', '')}\n")
+
     elif args.platform == "all":
         all_content = client.discover_all()
         print("\n🌐 All Platforms:\n")
@@ -83,7 +119,10 @@ def cmd_discover(args):
         print(f"  Moltbook: {len(all_content['moltbook'])} posts")
         print(f"  ClawCities: {len(all_content['clawcities'])} sites")
         print(f"  Clawsta: {len(all_content['clawsta'])} posts")
-        print(f"  4claw: {len(all_content['fourclaw'])} threads\n")
+        print(f"  4claw: {len(all_content['fourclaw'])} threads")
+        print(f"  PinchedIn: {len(all_content['pinchedin'])} posts")
+        print(f"  ClawTasks: {len(all_content['clawtasks'])} bounties")
+        print(f"  ClawNews: {len(all_content['clawnews'])} stories\n")
 
 
 def cmd_stats(args):
@@ -108,6 +147,7 @@ def cmd_comment(args):
         clawcities_key=config.get("clawcities", {}).get("api_key"),
         clawsta_key=config.get("clawsta", {}).get("api_key"),
         fourclaw_key=config.get("fourclaw", {}).get("api_key"),
+        pinchedin_key=config.get("pinchedin", {}).get("api_key"),
     )
 
     if args.platform == "clawcities":
@@ -119,6 +159,15 @@ def cmd_comment(args):
         result = client.post_clawsta(args.message)
         print(f"\n✓ Posted to Clawsta")
         print(f"  ID: {result.get('id')}")
+
+    elif args.platform == "pinchedin":
+        if args.target:
+            result = client.comment_pinchedin(args.target, args.message)
+            print(f"\n✓ Comment posted on PinchedIn post {args.target[:8]}...")
+            print(f"  ID: {result.get('id', 'ok')}")
+        else:
+            print("Error: --target post_id required for PinchedIn comments")
+            sys.exit(1)
 
     elif args.platform == "fourclaw":
         if args.target:
@@ -147,6 +196,8 @@ def cmd_post(args):
     client = GrazerClient(
         moltbook_key=config.get("moltbook", {}).get("api_key"),
         fourclaw_key=config.get("fourclaw", {}).get("api_key"),
+        pinchedin_key=config.get("pinchedin", {}).get("api_key"),
+        clawtasks_key=config.get("clawtasks", {}).get("api_key"),
         **llm_cfg,
     )
 
@@ -171,6 +222,17 @@ def cmd_post(args):
     elif args.platform == "moltbook":
         result = client.post_moltbook(args.message, args.title, submolt=args.board or "tech")
         print(f"\n✓ Posted to m/{args.board or 'tech'}")
+        print(f"  ID: {result.get('id', 'ok')}")
+
+    elif args.platform == "pinchedin":
+        result = client.post_pinchedin(args.message)
+        print(f"\n✓ Posted to PinchedIn")
+        print(f"  ID: {result.get('id', 'ok')}")
+
+    elif args.platform == "clawtasks":
+        tags = args.board.split(",") if args.board else None
+        result = client.post_clawtask(args.title, args.message, tags=tags)
+        print(f"\n✓ Bounty posted on ClawTasks")
         print(f"  ID: {result.get('id', 'ok')}")
 
 
@@ -255,7 +317,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="🐄 Grazer - Content discovery for AI agents"
     )
-    parser.add_argument("--version", action="version", version="grazer 1.3.0")
+    parser.add_argument("--version", action="version", version="grazer 1.5.0")
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
@@ -263,7 +325,7 @@ def main():
     discover_parser = subparsers.add_parser("discover", help="Discover trending content")
     discover_parser.add_argument(
         "-p", "--platform",
-        choices=["bottube", "moltbook", "clawcities", "clawsta", "fourclaw", "all"],
+        choices=["bottube", "moltbook", "clawcities", "clawsta", "fourclaw", "pinchedin", "pinchedin-jobs", "clawtasks", "clawnews", "all"],
         default="all",
         help="Platform to search"
     )
@@ -285,7 +347,7 @@ def main():
     comment_parser = subparsers.add_parser("comment", help="Reply to a thread or comment")
     comment_parser.add_argument(
         "-p", "--platform",
-        choices=["clawcities", "clawsta", "fourclaw"],
+        choices=["clawcities", "clawsta", "fourclaw", "pinchedin"],
         required=True,
         help="Platform"
     )
@@ -296,7 +358,7 @@ def main():
     post_parser = subparsers.add_parser("post", help="Create a new post or thread")
     post_parser.add_argument(
         "-p", "--platform",
-        choices=["fourclaw", "moltbook"],
+        choices=["fourclaw", "moltbook", "pinchedin", "clawtasks"],
         required=True,
         help="Platform"
     )

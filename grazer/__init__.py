@@ -22,6 +22,9 @@ class GrazerClient:
         clawsta_key: Optional[str] = None,
         fourclaw_key: Optional[str] = None,
         clawhub_token: Optional[str] = None,
+        pinchedin_key: Optional[str] = None,
+        clawtasks_key: Optional[str] = None,
+        clawnews_key: Optional[str] = None,
         llm_url: Optional[str] = None,
         llm_model: str = "gpt-oss-120b",
         llm_api_key: Optional[str] = None,
@@ -33,13 +36,16 @@ class GrazerClient:
         self.clawsta_key = clawsta_key
         self.fourclaw_key = fourclaw_key
         self.clawhub_token = clawhub_token
+        self.pinchedin_key = pinchedin_key
+        self.clawtasks_key = clawtasks_key
+        self.clawnews_key = clawnews_key
         self._clawhub = ClawHubClient(token=clawhub_token, timeout=timeout) if clawhub_token else ClawHubClient(timeout=timeout)
         self.llm_url = llm_url
         self.llm_model = llm_model
         self.llm_api_key = llm_api_key
         self.timeout = timeout
         self.session = requests.Session()
-        self.session.headers.update({"User-Agent": "Grazer/1.3.0 (Elyan Labs)"})
+        self.session.headers.update({"User-Agent": "Grazer/1.5.0 (Elyan Labs)"})
 
     # ───────────────────────────────────────────────────────────
     # BoTTube
@@ -189,9 +195,13 @@ class GrazerClient:
         if not self.clawsta_key:
             raise ValueError("Clawsta API key required")
 
+        # Clawsta requires an imageUrl; fall back to a stable Elyan-hosted asset if none is supplied.
+        # This keeps backwards compatibility for callers that only passed 'content'.
+        image_url = "https://bottube.ai/static/og-banner.png"
+
         resp = self.session.post(
             "https://clawsta.io/v1/posts",
-            json={"content": content},
+            json={"content": content, "imageUrl": image_url},
             headers={
                 "Authorization": f"Bearer {self.clawsta_key}",
                 "Content-Type": "application/json",
@@ -381,6 +391,371 @@ class GrazerClient:
         return data.get("items", [])
 
     # ───────────────────────────────────────────────────────────
+    # Agent Directory (directory.ctxly.app)
+    # ───────────────────────────────────────────────────────────
+
+    def discover_directory(
+        self, category: Optional[str] = None, query: Optional[str] = None, limit: int = 50
+    ) -> List[Dict]:
+        """Discover services from the Agent Directory (58+ registered services).
+
+        Args:
+            category: Filter by category (social, communication, memory, tools, knowledge, productivity)
+            query: Search services by name/description
+            limit: Maximum results to return
+        """
+        params = {}
+        if category:
+            params["category"] = category
+        if query:
+            params["q"] = query
+        try:
+            resp = self.session.get(
+                "https://directory.ctxly.app/api/services",
+                params=params,
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            services = data if isinstance(data, list) else data.get("services", [])
+            return services[:limit]
+        except Exception:
+            return []
+
+    def directory_categories(self) -> List[Dict]:
+        """List all categories in the Agent Directory."""
+        try:
+            resp = self.session.get(
+                "https://directory.ctxly.app/api/categories",
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            return resp.json() if isinstance(resp.json(), list) else resp.json().get("categories", [])
+        except Exception:
+            return []
+
+    def directory_service(self, slug: str) -> Optional[Dict]:
+        """Get details for a specific service by slug."""
+        try:
+            resp = self.session.get(
+                f"https://directory.ctxly.app/api/services/{slug}",
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            return resp.json()
+        except Exception:
+            return None
+
+    # ───────────────────────────────────────────────────────────
+    # SwarmHub (swarmhub.onrender.com)
+    # ───────────────────────────────────────────────────────────
+
+    def discover_swarmhub(self, limit: int = 20) -> Dict:
+        """Discover agents and swarms on SwarmHub."""
+        result = {"agents": [], "swarms": []}
+        try:
+            resp = self.session.get(
+                "https://swarmhub.onrender.com/api/v1/agents",
+                timeout=self.timeout,
+            )
+            if resp.ok:
+                data = resp.json()
+                result["agents"] = data.get("agents", [])[:limit]
+        except Exception:
+            pass
+        try:
+            resp = self.session.get(
+                "https://swarmhub.onrender.com/api/v1/swarms",
+                timeout=self.timeout,
+            )
+            if resp.ok:
+                data = resp.json()
+                result["swarms"] = data.get("swarms", [])[:limit]
+        except Exception:
+            pass
+        return result
+
+    # ───────────────────────────────────────────────────────────
+    # AgentChan (chan.alphakek.ai)
+    # ───────────────────────────────────────────────────────────
+
+    def discover_agentchan(self, limit: int = 20) -> List[Dict]:
+        """Get recent posts from AgentChan anonymous imageboard."""
+        try:
+            resp = self.session.get(
+                f"https://chan.alphakek.ai/api/recent.json?limit={limit}",
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("posts", []) if isinstance(data, dict) else data
+        except Exception:
+            return []
+
+    def post_agentchan(self, board: str, content: str, subject: Optional[str] = None,
+                       name: Optional[str] = None, reply_to: Optional[int] = None,
+                       image_url: Optional[str] = None) -> Optional[Dict]:
+        """Post to AgentChan. New threads require image_url from approved domains."""
+        form = {"board": board, "com": content}
+        if reply_to:
+            form["resto"] = str(reply_to)
+        if subject:
+            form["sub"] = subject
+        if name:
+            form["name"] = name
+        if image_url:
+            form["image_url"] = image_url
+        try:
+            resp = self.session.post(
+                "https://chan.alphakek.ai/api/post.php",
+                data=form,
+                timeout=self.timeout,
+            )
+            return resp.json() if resp.ok else None
+        except Exception:
+            return None
+
+    # ───────────────────────────────────────────────────────────
+    # PinchedIn (pinchedin.com) — Professional network for bots
+    # ───────────────────────────────────────────────────────────
+
+    def _pinchedin_headers(self) -> Dict:
+        if not self.pinchedin_key:
+            raise ValueError("PinchedIn API key required")
+        return {"Authorization": f"Bearer {self.pinchedin_key}", "Content-Type": "application/json"}
+
+    def discover_pinchedin(self, limit: int = 20) -> List[Dict]:
+        """Discover posts from PinchedIn feed."""
+        resp = self.session.get(
+            "https://www.pinchedin.com/api/feed",
+            params={"limit": limit},
+            headers=self._pinchedin_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json().get("posts", [])
+
+    def discover_pinchedin_bots(self, limit: int = 20) -> List[Dict]:
+        """Discover bots registered on PinchedIn."""
+        resp = self.session.get(
+            "https://www.pinchedin.com/api/bots",
+            params={"limit": limit},
+            headers=self._pinchedin_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json().get("bots", [])
+
+    def discover_pinchedin_jobs(self, limit: int = 20) -> List[Dict]:
+        """Browse job listings on PinchedIn."""
+        resp = self.session.get(
+            "https://www.pinchedin.com/api/jobs",
+            params={"limit": limit},
+            headers=self._pinchedin_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json().get("jobs", [])
+
+    def post_pinchedin(self, content: str) -> Dict:
+        """Create a post on PinchedIn (3/day limit)."""
+        resp = self.session.post(
+            "https://www.pinchedin.com/api/posts",
+            json={"content": content},
+            headers=self._pinchedin_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def like_pinchedin(self, post_id: str) -> Dict:
+        """Like a PinchedIn post."""
+        resp = self.session.post(
+            f"https://www.pinchedin.com/api/posts/{post_id}/like",
+            headers=self._pinchedin_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def comment_pinchedin(self, post_id: str, content: str) -> Dict:
+        """Comment on a PinchedIn post."""
+        resp = self.session.post(
+            f"https://www.pinchedin.com/api/posts/{post_id}/comment",
+            json={"content": content},
+            headers=self._pinchedin_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def connect_pinchedin(self, target_bot_id: str) -> Dict:
+        """Send a connection request (10/day limit)."""
+        resp = self.session.post(
+            "https://www.pinchedin.com/api/connections/request",
+            json={"targetBotId": target_bot_id},
+            headers=self._pinchedin_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def post_pinchedin_job(self, title: str, description: str, requirements: Optional[List[str]] = None,
+                           compensation: Optional[str] = None) -> Dict:
+        """Post a public job listing on PinchedIn."""
+        body = {"title": title, "description": description}
+        if requirements:
+            body["requirements"] = requirements
+        if compensation:
+            body["compensation"] = compensation
+        resp = self.session.post(
+            "https://www.pinchedin.com/api/jobs",
+            json=body,
+            headers=self._pinchedin_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def hire_pinchedin(self, target_bot_id: str, message: str, title: str = "",
+                       description: str = "", requirements: Optional[List[str]] = None,
+                       compensation: Optional[str] = None) -> Dict:
+        """Send a hiring request to a specific bot."""
+        body = {"targetBotId": target_bot_id, "message": message}
+        task_details = {}
+        if title:
+            task_details["title"] = title
+        if description:
+            task_details["description"] = description
+        if requirements:
+            task_details["requirements"] = requirements
+        if compensation:
+            task_details["compensation"] = compensation
+        if task_details:
+            body["taskDetails"] = task_details
+        resp = self.session.post(
+            "https://www.pinchedin.com/api/hiring/request",
+            json=body,
+            headers=self._pinchedin_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def pinchedin_hiring_inbox(self, status: Optional[str] = None) -> List[Dict]:
+        """Check hiring requests inbox. Status: pending, accepted, rejected, completed."""
+        params = {}
+        if status:
+            params["status"] = status
+        resp = self.session.get(
+            "https://www.pinchedin.com/api/hiring/inbox",
+            params=params,
+            headers=self._pinchedin_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data.get("requests", data) if isinstance(data, dict) else data
+
+    def pinchedin_hiring_respond(self, request_id: str, status: str) -> Dict:
+        """Respond to a hiring request. Status: accepted, rejected, completed."""
+        resp = self.session.patch(
+            f"https://www.pinchedin.com/api/hiring/{request_id}",
+            json={"status": status},
+            headers=self._pinchedin_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    # ───────────────────────────────────────────────────────────
+    # ClawTasks (clawtasks.com) — Bounty & task marketplace
+    # ───────────────────────────────────────────────────────────
+
+    def _clawtasks_headers(self) -> Dict:
+        if not self.clawtasks_key:
+            raise ValueError("ClawTasks API key required")
+        return {"Authorization": f"Bearer {self.clawtasks_key}", "Content-Type": "application/json"}
+
+    def discover_clawtasks(self, status: str = "open", limit: int = 20) -> List[Dict]:
+        """Browse bounties on ClawTasks. Use clawtasks.com (not www)."""
+        resp = self.session.get(
+            "https://clawtasks.com/api/bounties",
+            params={"status": status, "limit": limit},
+            headers=self._clawtasks_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json().get("bounties", [])
+
+    def get_clawtask(self, bounty_id: str) -> Dict:
+        """Get details of a specific bounty."""
+        resp = self.session.get(
+            f"https://clawtasks.com/api/bounties/{bounty_id}",
+            headers=self._clawtasks_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def post_clawtask(self, title: str, description: str, tags: Optional[List[str]] = None,
+                      deadline_hours: int = 168) -> Dict:
+        """Post a new bounty on ClawTasks (10 active max)."""
+        body = {"title": title, "description": description, "deadline_hours": deadline_hours}
+        if tags:
+            body["tags"] = tags
+        resp = self.session.post(
+            "https://clawtasks.com/api/bounties",
+            json=body,
+            headers=self._clawtasks_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    # ───────────────────────────────────────────────────────────
+    # ClawNews (clawnews.io) — AI agent news aggregator
+    # ───────────────────────────────────────────────────────────
+
+    def _clawnews_headers(self) -> Dict:
+        if not self.clawnews_key:
+            raise ValueError("ClawNews API key required")
+        return {"Authorization": f"Bearer {self.clawnews_key}", "Content-Type": "application/json"}
+
+    def discover_clawnews(self, limit: int = 20) -> List[Dict]:
+        """Discover stories from ClawNews."""
+        try:
+            resp = self.session.get(
+                "https://clawnews.io/api/stories",
+                params={"limit": limit},
+                headers=self._clawnews_headers(),
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("stories", data) if isinstance(data, dict) else data
+        except Exception:
+            return []
+
+    def post_clawnews(self, headline: str, url: str, summary: str,
+                      tags: Optional[List[str]] = None) -> Optional[Dict]:
+        """Submit a story to ClawNews."""
+        body = {"headline": headline, "url": url, "summary": summary}
+        if tags:
+            body["tags"] = tags
+        try:
+            resp = self.session.post(
+                "https://clawnews.io/api/stories",
+                json=body,
+                headers=self._clawnews_headers(),
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            return resp.json()
+        except Exception:
+            return None
+
+    # ───────────────────────────────────────────────────────────
     # Cross-Platform
     # ───────────────────────────────────────────────────────────
 
@@ -392,6 +767,11 @@ class GrazerClient:
             "clawcities": [],
             "clawsta": [],
             "fourclaw": [],
+            "pinchedin": [],
+            "clawtasks": [],
+            "clawnews": [],
+            "directory": [],
+            "agentchan": [],
         }
 
         try:
@@ -419,6 +799,31 @@ class GrazerClient:
         except Exception:
             pass
 
+        try:
+            results["pinchedin"] = self.discover_pinchedin(limit=10)
+        except Exception:
+            pass
+
+        try:
+            results["clawtasks"] = self.discover_clawtasks(limit=10)
+        except Exception:
+            pass
+
+        try:
+            results["clawnews"] = self.discover_clawnews(limit=10)
+        except Exception:
+            pass
+
+        try:
+            results["directory"] = self.discover_directory(limit=20)
+        except Exception:
+            pass
+
+        try:
+            results["agentchan"] = self.discover_agentchan(limit=10)
+        except Exception:
+            pass
+
         return results
 
     def report_download(self, platform: str, version: str):
@@ -439,5 +844,5 @@ class GrazerClient:
             pass
 
 
-__version__ = "1.3.0"
+__version__ = "1.5.0"
 __all__ = ["GrazerClient", "ClawHubClient", "generate_svg", "svg_to_media", "generate_template_svg", "generate_llm_svg"]

@@ -238,13 +238,18 @@ export class GrazerClient {
     return resp.data.posts || [];
   }
 
-  async postClawsta(content: string): Promise<any> {
+  async postClawsta(
+    content: string,
+    options: { imageUrl?: string } = {}
+  ): Promise<any> {
     if (!this.config.clawsta) {
       throw new Error('Clawsta API key required');
     }
+    // Clawsta requires an imageUrl for posts. Provide a stable default for callers.
+    const imageUrl = options.imageUrl || 'https://bottube.ai/static/og-banner.png';
     const resp = await this.http.post(
       'https://clawsta.io/v1/posts',
-      { content },
+      { content, imageUrl },
       {
         headers: {
           Authorization: `Bearer ${this.config.clawsta}`,
