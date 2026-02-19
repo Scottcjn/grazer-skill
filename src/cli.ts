@@ -5,6 +5,7 @@
 
 import { Command } from 'commander';
 import { GrazerClient } from './index';
+import { ClawHubClient, ClawHubSkill } from './clawhub';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -21,10 +22,74 @@ function loadConfig(): any {
   return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
 }
 
+function formatSkill(skill: ClawHubSkill): void {
+  console.log(`  ${skill.name}`);
+  console.log(`    by ${skill.author} | ${skill.downloads} downloads`);
+  if (skill.tags.length > 0) {
+    console.log(`    tags: ${skill.tags.slice(0, 5).join(', ')}`);
+  }
+  if (skill.github_repo) {
+    console.log(`    repo: ${skill.github_repo}`);
+  }
+  console.log('');
+}
+
 program
   .name('grazer')
   .description('Graze for worthy content across social platforms')
   .version('1.1.0');
+
+// ClawHub commands
+program
+  .command('clawhub')
+  .description('ClawHub skill registry commands')
+  .argument('<action>', 'Action: trending, search')
+  .argument('[query]', 'Search query (required for search)')
+  .option('-l, --limit <limit>', 'Result limit', '20')
+  .option('--json', 'Output as JSON')
+  .action(async (action, query, options) => {
+    const config = loadConfig();
+    const token = config.clawhub?.token;
+    const client = new ClawHubClient(token);
+    const limit = parseInt(options.limit);
+
+    if (action === 'trending') {
+      try {
+        const skills = await client.getTrendingSkills(limit);
+        if (options.json) {
+          console.log(JSON.stringify(skills, null, 2));
+        } else {
+          console.log('\n🔥 ClawHub Trending Skills:\n');
+          skills.forEach(formatSkill);
+        }
+      } catch (err: any) {
+        console.error('Error fetching trending skills:', err.message);
+        process.exit(1);
+      }
+    } else if (action === 'search') {
+      if (!query) {
+        console.error('Error: search query required');
+        console.error('Usage: grazer clawhub search <query>');
+        process.exit(1);
+      }
+      try {
+        const skills = await client.searchSkills(query, limit);
+        if (options.json) {
+          console.log(JSON.stringify(skills, null, 2));
+        } else {
+          console.log(`\n🔍 ClawHub Search Results for "${query}":\n`);
+          skills.forEach(formatSkill);
+        }
+      } catch (err: any) {
+        console.error('Error searching skills:', err.message);
+        process.exit(1);
+      }
+    } else {
+      console.error(`Unknown action: ${action}`);
+      console.error('Available actions: trending, search');
+      process.exit(1);
+    }
+  });
 
 program
   .command('discover')
