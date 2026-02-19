@@ -5,6 +5,7 @@
 
 import { Command } from 'commander';
 import { GrazerClient } from './index';
+import { ClawHubClient, ClawHubSkill } from './clawhub';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -184,6 +185,75 @@ program
       const result = await client.postMoltbook(options.message, options.title, options.board || 'tech');
       console.log(`\n✓ Posted to m/${options.board || 'tech'}`);
       console.log(`  ID: ${result.id || 'ok'}`);
+    }
+  });
+
+// ClawHub subcommand
+const clawhub = program
+  .command('clawhub')
+  .description('ClawHub skill registry commands');
+
+clawhub
+  .command('trending')
+  .description('Get trending skills from ClawHub')
+  .option('-l, --limit <limit>', 'Result limit', '20')
+  .action(async (options) => {
+    const config = loadConfig();
+    const client = new ClawHubClient(config.clawhub?.token);
+    const limit = parseInt(options.limit);
+
+    try {
+      const skills = await client.getTrendingSkills(limit);
+      console.log('\n🔮 Trending ClawHub Skills:\n');
+      skills.forEach((skill: ClawHubSkill) => {
+        console.log(`  ${skill.name}`);
+        console.log(`    by ${skill.author} | ${skill.downloads} downloads | ${skill.version}`);
+        console.log(`    ${skill.description?.slice(0, 60)}...`);
+        if (skill.tags?.length) {
+          console.log(`    tags: ${skill.tags.join(', ')}`);
+        }
+        if (skill.github_repo) {
+          console.log(`    repo: ${skill.github_repo}`);
+        }
+        console.log('');
+      });
+    } catch (err: any) {
+      console.error('Error fetching trending skills:', err.message);
+      process.exit(1);
+    }
+  });
+
+clawhub
+  .command('search <query>')
+  .description('Search skills on ClawHub')
+  .option('-l, --limit <limit>', 'Result limit', '20')
+  .action(async (query: string, options) => {
+    const config = loadConfig();
+    const client = new ClawHubClient(config.clawhub?.token);
+    const limit = parseInt(options.limit);
+
+    try {
+      const skills = await client.searchSkills(query, limit);
+      if (skills.length === 0) {
+        console.log(`\nNo skills found for "${query}"\n`);
+        return;
+      }
+      console.log(`\n🔍 Search results for "${query}":\n`);
+      skills.forEach((skill: ClawHubSkill) => {
+        console.log(`  ${skill.name}`);
+        console.log(`    by ${skill.author} | ${skill.downloads} downloads | ${skill.version}`);
+        console.log(`    ${skill.description?.slice(0, 60)}...`);
+        if (skill.tags?.length) {
+          console.log(`    tags: ${skill.tags.join(', ')}`);
+        }
+        if (skill.github_repo) {
+          console.log(`    repo: ${skill.github_repo}`);
+        }
+        console.log('');
+      });
+    } catch (err: any) {
+      console.error('Error searching skills:', err.message);
+      process.exit(1);
     }
   });
 

@@ -1,8 +1,9 @@
 /**
  * ClawHub Integration - Skill Registry with Vector Search
+ * Uses clawdhub CLI for reliability
  */
 
-import axios, { AxiosInstance } from 'axios';
+import { execSync } from 'child_process';
 
 export interface ClawHubSkill {
   id: string;
@@ -18,52 +19,121 @@ export interface ClawHubSkill {
   github_repo?: string;
 }
 
+interface ClawHubCLIResult {
+  name: string;
+  description: string;
+  author: string;
+  version: string;
+  downloads: number;
+  tags: string[];
+  platforms: string[];
+  npm_package?: string;
+  github_repo?: string;
+}
+
+function parseSkillLine(line: string): ClawHubCLIResult | null {
+  // Parse lines like: "skill-name v1.0.0  time  Description"
+  // or: "skill-name v1.0.0  Description (by author, 1.2k downloads)"
+  let match = line.match(/^([^\s]+)\s+v?([^\s]+)\s+(.+?)\s+\(by\s+([^,]+),\s*([\d.]+[km]?)\s*downloads?\)/i);
+  if (match) {
+    const [, name, version, description, author, downloadsStr] = match;
+    let downloads = 0;
+    if (downloadsStr.endsWith('k')) {
+      downloads = Math.round(parseFloat(downloadsStr) * 1000);
+    } else if (downloadsStr.endsWith('m')) {
+      downloads = Math.round(parseFloat(downloadsStr) * 1000000);
+    } else {
+      downloads = parseInt(downloadsStr) || 0;
+    }
+    return { name, version, description: description.trim(), author: author.trim(), downloads, tags: [], platforms: [] };
+  }
+
+  // Parse explore output: "name v1.0.0  time  Description"
+  match = line.match(/^([^\s]+)\s+v?([^\s]+)\s+(\S+)\s+(.+)$/);
+  if (match) {
+    const [, name, version, , description] = match;
+    return {
+      name,
+      version,
+      description: description.trim(),
+      author: 'unknown',
+      downloads: 0,
+      tags: [],
+      platforms: [],
+    };
+  }
+
+  return null;
+}
+
 export class ClawHubClient {
-  private http: AxiosInstance;
   private token?: string;
 
   constructor(token?: string) {
     this.token = token;
-    this.http = axios.create({
-      baseURL: 'https://clawhub.ai/api/v1',
-      timeout: 15000,
-      headers: {
-        'User-Agent': 'Grazer/1.3.0 (Elyan Labs)',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
   }
 
   /**
-   * Search skills using vector search
-   */
-  async searchSkills(query: string, limit = 20): Promise<ClawHubSkill[]> {
-    const resp = await this.http.get('/skills/search', {
-      params: { q: query, limit },
-    });
-    return resp.data.skills || [];
-  }
-
-  /**
-   * Get trending skills
+   * Get trending skills using clawdhub CLI
    */
   async getTrendingSkills(limit = 20): Promise<ClawHubSkill[]> {
-    const resp = await this.http.get('/skills/trending', {
-      params: { limit },
-    });
-    return resp.data.skills || [];
+    try {
+      const output = execSync(`clawdhub explore --limit ${limit} --sort trending`, {
+        encoding: 'utf-8',
+        timeout: 30000,
+      });
+
+      const skills: ClawHubSkill[] = [];
+      const lines = output.split('\n').filter(l => l.trim());
+
+      for (const line of lines) {
+        const skill = parseSkillLine(line);
+        if (skill) {
+          skills.push(skill as ClawHubSkill);
+        }
+      }
+
+      return skills.slice(0, limit);
+    } catch (err: any) {
+      throw new Error(`Failed to fetch trending skills: ${err.message}`);
+    }
   }
 
   /**
-   * Get skill by ID
+   * Search skills using clawdhub CLI
+   */
+  async searchSkills(query: string, limit = 20): Promise<ClawHubSkill[]> {
+    try {
+      const output = execSync(`clawdhub search "${query}" --limit ${limit}`, {
+        encoding: 'utf-8',
+        timeout: 30000,
+      });
+
+      const skills: ClawHubSkill[] = [];
+      const lines = output.split('\n').filter(l => l.trim());
+
+      for (const line of lines) {
+        const skill = parseSkillLine(line);
+        if (skill) {
+          skills.push(skill as ClawHubSkill);
+        }
+      }
+
+      return skills.slice(0, limit);
+    } catch (err: any) {
+      throw new Error(`Failed to search skills: ${err.message}`);
+    }
+  }
+
+  /**
+   * Get skill by ID (not implemented via CLI)
    */
   async getSkill(skillId: string): Promise<ClawHubSkill> {
-    const resp = await this.http.get(`/skills/${skillId}`);
-    return resp.data;
+    throw new Error('getSkill not implemented - use search instead');
   }
 
   /**
-   * Publish skill to ClawHub
+   * Publish skill to ClawHub (requires token)
    */
   async publishSkill(skill: {
     name: string;
@@ -75,35 +145,21 @@ export class ClawHubClient {
     pypi_package?: string;
     github_repo?: string;
   }): Promise<ClawHubSkill> {
-    if (!this.token) {
-      throw new Error('ClawHub token required for publishing');
-    }
-
-    const resp = await this.http.post('/skills', skill);
-    return resp.data;
+    throw new Error('Use clawdhub CLI to publish: clawdhub publish');
   }
 
   /**
-   * Update skill metadata
+   * Update skill metadata (not implemented via CLI)
    */
   async updateSkill(skillId: string, updates: Partial<ClawHubSkill>): Promise<ClawHubSkill> {
-    if (!this.token) {
-      throw new Error('ClawHub token required for updates');
-    }
-
-    const resp = await this.http.patch(`/skills/${skillId}`, updates);
-    return resp.data;
+    throw new Error('Use clawdhub CLI to update');
   }
 
   /**
-   * Record download/install
+   * Record download/install (not implemented via CLI)
    */
   async recordInstall(skillId: string, platform: 'npm' | 'pypi'): Promise<void> {
-    try {
-      await this.http.post(`/skills/${skillId}/installs`, { platform });
-    } catch (err) {
-      // Silent fail
-    }
+    // Silent - CLI handles this
   }
 }
 

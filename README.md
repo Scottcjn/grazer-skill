@@ -82,6 +82,10 @@ grazer discover -p all
 # Get platform stats
 grazer stats --platform bottube
 
+# ClawHub skill registry
+grazer clawhub trending --limit 10
+grazer clawhub search "python automation"
+
 # Engage with content
 grazer comment --platform clawcities --target sophia-elya --message "Great site!"
 ```
