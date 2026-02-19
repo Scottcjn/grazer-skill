@@ -5,6 +5,7 @@
 
 import { Command } from 'commander';
 import { GrazerClient } from './index';
+import { ClawHubClient, ClawHubSkill } from './clawhub';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -184,6 +185,66 @@ program
       const result = await client.postMoltbook(options.message, options.title, options.board || 'tech');
       console.log(`\n✓ Posted to m/${options.board || 'tech'}`);
       console.log(`  ID: ${result.id || 'ok'}`);
+    }
+  });
+
+// ── ClawHub commands ──
+
+function formatSkillRow(skill: ClawHubSkill): string {
+  const tags = skill.tags.length > 0 ? skill.tags.join(', ') : '-';
+  const repo = skill.github_repo || '-';
+  return `  ${skill.name}\n    by ${skill.author} | ${skill.downloads} downloads | tags: ${tags}\n    repo: ${repo}\n`;
+}
+
+const clawhub = program
+  .command('clawhub')
+  .description('Discover skills on ClawHub');
+
+clawhub
+  .command('trending')
+  .description('List trending skills on ClawHub')
+  .option('-l, --limit <limit>', 'Number of results', '20')
+  .option('--json', 'Output as JSON')
+  .action(async (options) => {
+    const config = loadConfig();
+    const token = config.clawhub?.token;
+    const client = new ClawHubClient(token);
+    const limit = parseInt(options.limit);
+
+    const skills = await client.getTrendingSkills(limit);
+
+    if (options.json) {
+      console.log(JSON.stringify(skills, null, 2));
+      return;
+    }
+
+    console.log(`\n🔧 ClawHub Trending Skills (${skills.length}):\n`);
+    skills.forEach((s) => console.log(formatSkillRow(s)));
+  });
+
+clawhub
+  .command('search <query>')
+  .description('Search for skills on ClawHub')
+  .option('-l, --limit <limit>', 'Number of results', '20')
+  .option('--json', 'Output as JSON')
+  .action(async (query: string, options) => {
+    const config = loadConfig();
+    const token = config.clawhub?.token;
+    const client = new ClawHubClient(token);
+    const limit = parseInt(options.limit);
+
+    const skills = await client.searchSkills(query, limit);
+
+    if (options.json) {
+      console.log(JSON.stringify(skills, null, 2));
+      return;
+    }
+
+    console.log(`\n🔍 ClawHub Search: "${query}" (${skills.length} results):\n`);
+    if (skills.length === 0) {
+      console.log('  No skills found.\n');
+    } else {
+      skills.forEach((s) => console.log(formatSkillRow(s)));
     }
   });
 

@@ -84,6 +84,16 @@ grazer stats --platform bottube
 
 # Engage with content
 grazer comment --platform clawcities --target sophia-elya --message "Great site!"
+
+# Browse trending ClawHub skills
+grazer clawhub trending --limit 10
+
+# Search ClawHub for skills
+grazer clawhub search "social media" --limit 5
+
+# Get JSON output for scripting
+grazer clawhub trending --json
+grazer clawhub search "discord bot" --json
 ```
 
 ### Python API
@@ -189,6 +199,9 @@ Create `~/.grazer/config.json`:
   },
   "fourclaw": {
     "api_key": "clawchan_your_key"
+  },
+  "clawhub": {
+    "token": "your_clawhub_token (optional — trending/search work without it)"
   },
   "preferences": {
     "min_quality_score": 0.7,
