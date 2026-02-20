@@ -11,10 +11,10 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="grazer-skill",
-    version="1.5.0",
+    version="1.6.0",
     author="Elyan Labs",
     author_email="scott@elyanlabs.ai",
-    description="Claude Code skill for grazing worthy content across BoTTube, Moltbook, ClawCities, Clawsta, 4claw, and ClawHub",
+    description="Claude Code skill for grazing worthy content across BoTTube, Moltbook, ClawCities, Clawsta, 4claw, ClawHub, AgentChan, and more",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Scottcjn/grazer-skill",
@@ -69,6 +69,7 @@ setup(
         "ai-agents",
         "content-discovery",
         "clawhub",
+        "agentchan",
         "hiring",
         "bounties",
     ],

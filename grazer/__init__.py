@@ -25,6 +25,7 @@ class GrazerClient:
         pinchedin_key: Optional[str] = None,
         clawtasks_key: Optional[str] = None,
         clawnews_key: Optional[str] = None,
+        agentchan_key: Optional[str] = None,
         llm_url: Optional[str] = None,
         llm_model: str = "gpt-oss-120b",
         llm_api_key: Optional[str] = None,
@@ -39,6 +40,7 @@ class GrazerClient:
         self.pinchedin_key = pinchedin_key
         self.clawtasks_key = clawtasks_key
         self.clawnews_key = clawnews_key
+        self.agentchan_key = agentchan_key
         self._clawhub = ClawHubClient(token=clawhub_token, timeout=timeout) if clawhub_token else ClawHubClient(timeout=timeout)
         self.llm_url = llm_url
         self.llm_model = llm_model
@@ -479,36 +481,81 @@ class GrazerClient:
     # AgentChan (chan.alphakek.ai)
     # ───────────────────────────────────────────────────────────
 
-    def discover_agentchan(self, limit: int = 20) -> List[Dict]:
-        """Get recent posts from AgentChan anonymous imageboard."""
+    def _agentchan_headers(self) -> Dict:
+        headers = {"Content-Type": "application/json"}
+        if self.agentchan_key:
+            headers["Authorization"] = f"Bearer {self.agentchan_key}"
+        return headers
+
+    def discover_agentchan(self, board: str = "ai", limit: int = 20) -> List[Dict]:
+        """Get threads from an AgentChan board catalog."""
         try:
             resp = self.session.get(
-                f"https://chan.alphakek.ai/api/recent.json?limit={limit}",
+                f"https://chan.alphakek.ai/api/boards/{board}/catalog",
                 timeout=self.timeout,
             )
             resp.raise_for_status()
             data = resp.json()
-            return data.get("posts", []) if isinstance(data, dict) else data
+            threads = data.get("data", []) if isinstance(data, dict) else data
+            return threads[:limit]
         except Exception:
             return []
 
-    def post_agentchan(self, board: str, content: str, subject: Optional[str] = None,
-                       name: Optional[str] = None, reply_to: Optional[int] = None,
-                       image_url: Optional[str] = None) -> Optional[Dict]:
-        """Post to AgentChan. New threads require image_url from approved domains."""
-        form = {"board": board, "com": content}
-        if reply_to:
-            form["resto"] = str(reply_to)
-        if subject:
-            form["sub"] = subject
+    def list_agentchan_boards(self) -> List[Dict]:
+        """List all available AgentChan boards."""
+        try:
+            resp = self.session.get(
+                "https://chan.alphakek.ai/api/boards",
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("data", []) if isinstance(data, dict) else data
+        except Exception:
+            return []
+
+    def post_agentchan(self, board: str, content: str, name: Optional[str] = None,
+                       reply_to: Optional[int] = None) -> Optional[Dict]:
+        """Post to AgentChan. Creates a new thread or replies to an existing one.
+
+        Args:
+            board: Board code (e.g. 'ai', 'dev', 'b')
+            content: Post content
+            name: Display name (optional, supports tripcodes with #)
+            reply_to: Thread ID to reply to (omit to create new thread)
+        """
+        payload: Dict = {"content": content}
         if name:
-            form["name"] = name
-        if image_url:
-            form["image_url"] = image_url
+            payload["name"] = name
+        try:
+            if reply_to:
+                url = f"https://chan.alphakek.ai/api/boards/{board}/threads/{reply_to}/posts"
+            else:
+                url = f"https://chan.alphakek.ai/api/boards/{board}/threads"
+            resp = self.session.post(
+                url,
+                headers=self._agentchan_headers(),
+                json=payload,
+                timeout=self.timeout,
+            )
+            return resp.json() if resp.ok else None
+        except Exception:
+            return None
+
+    def register_agentchan(self, label: str) -> Optional[Dict]:
+        """Register a new agent on AgentChan and get an API key.
+
+        Args:
+            label: Agent name/label for registration
+
+        Returns:
+            Dict with 'agent.api_key' — save this immediately, shown only once.
+        """
         try:
             resp = self.session.post(
-                "https://chan.alphakek.ai/api/post.php",
-                data=form,
+                "https://chan.alphakek.ai/api/register",
+                headers={"Content-Type": "application/json"},
+                json={"label": label},
                 timeout=self.timeout,
             )
             return resp.json() if resp.ok else None
@@ -844,5 +891,5 @@ class GrazerClient:
             pass
 
 
-__version__ = "1.5.0"
+__version__ = "1.6.0"
 __all__ = ["GrazerClient", "ClawHubClient", "generate_svg", "svg_to_media", "generate_template_svg", "generate_llm_svg"]

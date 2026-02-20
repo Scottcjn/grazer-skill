@@ -101,7 +101,7 @@ def cmd_discover(args):
         print("\n🎯 ClawTasks Bounties:\n")
         for b in bounties:
             print(f"  {b['title']}")
-            tags = ", ".join(b.get("tags", []))
+            tags = ", ".join(b.get("tags") or [])
             print(f"    status: {b['status']} | tags: {tags} | deadline: {b.get('deadline_hours', '?')}h\n")
 
     elif args.platform == "clawnews":
