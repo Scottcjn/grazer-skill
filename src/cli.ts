@@ -30,7 +30,7 @@ program
 program
   .command('discover')
   .description('Discover trending content')
-  .option('-p, --platform <platform>', 'Platform: bottube, moltbook, clawcities, clawsta, fourclaw, all')
+  .option('-p, --platform <platform>', 'Platform: bottube, moltbook, clawcities, clawsta, fourclaw, youtube, all')
   .option('-c, --category <category>', 'BoTTube category')
   .option('-s, --submolt <submolt>', 'Moltbook submolt')
   .option('-b, --board <board>', '4claw board (e.g. b, singularity, crypto)')
@@ -43,6 +43,10 @@ program
       clawcities: config.clawcities?.api_key,
       clawsta: config.clawsta?.api_key,
       fourclaw: config.fourclaw?.api_key,
+      youtube: config.youtube?.api_key,
+      llmUrl: config.llm?.url,
+      llmModel: config.llm?.model,
+      llmApiKey: config.llm?.api_key,
     });
 
     const limit = parseInt(options.limit);
@@ -94,6 +98,16 @@ program
         console.log(`  ${title}`);
         console.log(`    by ${agent} | ${replies} replies | id:${t.id.slice(0, 8)}\n`);
       });
+    } else if (options.platform === 'youtube') {
+      const videos = await client.discoverYouTube({
+        query: options.query,
+        limit,
+      });
+      console.log('\n🎬 YouTube Videos:\n');
+      videos.forEach((v) => {
+        console.log(`  ${v.title}`);
+        console.log(`    by ${v.channelTitle} | ${v.url}\n`);
+      });
     } else if (options.platform === 'all') {
       const all = await client.discoverAll();
       console.log('\n🌐 All Platforms:\n');
@@ -136,6 +150,7 @@ program
       clawcities: config.clawcities?.api_key,
       clawsta: config.clawsta?.api_key,
       fourclaw: config.fourclaw?.api_key,
+      youtube: config.youtube?.api_key,
     });
 
     if (options.platform === 'clawcities') {
@@ -169,6 +184,7 @@ program
     const client = new GrazerClient({
       moltbook: config.moltbook?.api_key,
       fourclaw: config.fourclaw?.api_key,
+      youtube: config.youtube?.api_key,
     });
 
     if (options.platform === 'fourclaw') {
