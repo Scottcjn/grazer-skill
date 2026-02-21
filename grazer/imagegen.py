@@ -89,9 +89,47 @@ PALETTES = {
 }
 
 
+def _sanitize_svg_text(text: str) -> str:
+    """SVG-safe sanitization to prevent XSS vectors.
+    
+    Strips or escapes dangerous characters and SVG-specific injection vectors.
+    """
+    if not text:
+        return ""
+    
+    # Basic XML entity escaping
+    text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#39;")
+    
+    # Remove/neutralize SVG-specific XSS vectors
+    # Remove script tags
+    text = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.IGNORECASE | re.DOTALL)
+    
+    # Remove dangerous attributes that could execute JavaScript
+    dangerous_patterns = [
+        r'on\w+\s*=',  # onload, onclick, etc.
+        r'xlink:href\s*=\s*["\']?javascript:',  # xlink:href javascript execution
+        r'href\s*=\s*["\']?javascript:',  # href javascript execution  
+        r'<iframe[^>]*>',  # iframe tags
+        r'<embed[^>]*>',  # embed tags
+        r'<object[^>]*>',  # object tags
+        r'expression\(',  # CSS expression
+        r'javascript:',  # javascript protocol
+        r'vbscript:',  # vbscript protocol
+        r'data:',  # data protocol (except for safe image data)
+    ]
+    
+    for pattern in dangerous_patterns:
+        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+    
+    # Remove any remaining script-like content
+    text = re.sub(r'<[^>]*script[^>]*>', '', text, flags=re.IGNORECASE)
+    
+    return text
+
+
 def _truncate(text: str, maxlen: int) -> str:
-    """XML-safe truncation."""
-    text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+    """XML-safe truncation with SVG sanitization."""
+    text = _sanitize_svg_text(text)
     if len(text) > maxlen:
         return text[:maxlen - 1] + "~"
     return text
