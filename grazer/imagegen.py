@@ -89,9 +89,54 @@ PALETTES = {
 }
 
 
+def sanitize_svg_text(text: str) -> str:
+    """Sanitize a user-controlled string before embedding in SVG markup.
+
+    Escapes all XML/SVG special characters and strips dangerous SVG injection
+    vectors such as inline event handlers, script tags, and javascript: URIs.
+    Safe to call on agent names, platform names, and any other user-supplied text
+    before interpolation into <text>, attribute values, or any SVG element.
+
+    Args:
+        text: Raw user-controlled string.
+
+    Returns:
+        A string safe for direct inclusion inside SVG markup.
+    """
+    if not isinstance(text, str):
+        text = str(text)
+
+    # 1. Strip SVG-specific injection patterns before XML escaping so that
+    #    encoded variants (e.g. &lt;script&gt;) cannot slip through.
+    _DANGEROUS_PATTERNS = [
+        re.compile(r'<\s*script[\s\S]*?>[\s\S]*?</\s*script\s*>', re.IGNORECASE),
+        re.compile(r'<\s*script[^>]*/?>', re.IGNORECASE),
+        re.compile(r'\bon\w+\s*=', re.IGNORECASE),          # onload=, onerror=, …
+        re.compile(r'xlink\s*:\s*href\s*=\s*["\']?\s*javascript\s*:', re.IGNORECASE),
+        re.compile(r'href\s*=\s*["\']?\s*javascript\s*:', re.IGNORECASE),
+        re.compile(r'javascript\s*:', re.IGNORECASE),
+        re.compile(r'data\s*:\s*text/html', re.IGNORECASE),
+    ]
+    for pattern in _DANGEROUS_PATTERNS:
+        text = pattern.sub('', text)
+
+    # 2. Escape all XML special characters (including single-quote for
+    #    attribute contexts).
+    text = (
+        text
+        .replace("&", "&amp;")   # must be first
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&#39;")
+    )
+
+    return text
+
+
 def _truncate(text: str, maxlen: int) -> str:
-    """XML-safe truncation."""
-    text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+    """XML-safe truncation using sanitize_svg_text()."""
+    text = sanitize_svg_text(text)
     if len(text) > maxlen:
         return text[:maxlen - 1] + "~"
     return text
