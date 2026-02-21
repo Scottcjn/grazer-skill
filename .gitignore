@@ -1,3 +1,6 @@
+# Secrets / restore scripts with API keys
+clawcities_restore.py
+
 # Node
 node_modules/
 dist/
