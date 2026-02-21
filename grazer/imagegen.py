@@ -135,9 +135,21 @@ def _validate_svg(svg: str) -> str:
     # Must start with <svg
     if not svg.startswith("<svg"):
         raise ValueError("Generated content is not valid SVG")
+
+    # Sanitize dangerous elements: <script>, <foreignObject>, <iframe>
+    # Using case-insensitive regex to catch <SCRIPT>, <ForeignObject>, etc.
+    svg = re.sub(r'<(script|foreignObject|iframe)\b[^>]*>.*?</\1>', '', svg, flags=re.DOTALL | re.IGNORECASE)
+    # Also catch self-closing tags just in case
+    svg = re.sub(r'<(script|foreignObject|iframe)\b[^>]*/>', '', svg, flags=re.IGNORECASE)
+
+    # Remove all event handler attributes (on*="...")
+    # This catches onload, onclick, onmouseover, etc.
+    svg = re.sub(r'\s+on[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)', '', svg, flags=re.IGNORECASE)
+
     # Ensure xmlns is present
     if 'xmlns=' not in svg:
         svg = svg.replace("<svg", f'<svg {SVG_NAMESPACE}', 1)
+
     # Size check
     if len(svg.encode("utf-8")) > SVG_MAX_BYTES:
         raise ValueError(f"SVG exceeds 4KB limit ({len(svg.encode('utf-8'))} bytes)")
