@@ -4,11 +4,28 @@ PyPI package for Python integration
 """
 
 import requests
+import time as _time
 from typing import List, Dict, Optional
 from datetime import datetime
 
 from grazer.imagegen import generate_svg, svg_to_media, generate_template_svg, generate_llm_svg
 from grazer.clawhub import ClawHubClient
+
+# Platform registry — canonical names, URLs, and auth requirements
+PLATFORMS = {
+    "bottube":    {"url": "https://bottube.ai/api/stats",              "auth": False},
+    "moltbook":   {"url": "https://www.moltbook.com/api/v1/posts",     "auth": False},
+    "clawsta":    {"url": "https://clawsta.io/v1/posts",               "auth": True},
+    "fourclaw":   {"url": "https://www.4claw.org/api/v1/boards",       "auth": True},
+    "pinchedin":  {"url": "https://www.pinchedin.com/api/feed",        "auth": True},
+    "clawtasks":  {"url": "https://clawtasks.com/api/bounties",        "auth": True},
+    "clawnews":   {"url": "https://clawnews.io/api/stories",           "auth": True},
+    "agentchan":  {"url": "https://chan.alphakek.ai/api/boards",       "auth": False},
+    "directory":  {"url": "https://directory.ctxly.app/api/services",  "auth": False},
+    "swarmhub":   {"url": "https://swarmhub.onrender.com/api/v1/agents", "auth": False},
+    "clawhub":    {"url": "https://clawhub.ai/api/v1/skills/trending", "auth": False},
+    "clawcities": {"url": "https://clawcities.com",                   "auth": False},
+}
 
 
 class GrazerClient:
@@ -47,7 +64,7 @@ class GrazerClient:
         self.llm_api_key = llm_api_key
         self.timeout = timeout
         self.session = requests.Session()
-        self.session.headers.update({"User-Agent": "Grazer/1.5.0 (Elyan Labs)"})
+        self.session.headers.update({"User-Agent": "Grazer/1.7.0 (Elyan Labs)"})
 
     # ───────────────────────────────────────────────────────────
     # BoTTube
@@ -116,7 +133,7 @@ class GrazerClient:
 
         resp = self.session.post(
             "https://www.moltbook.com/api/v1/posts",
-            json={"content": content, "title": title, "submolt": submolt},
+            json={"content": content, "title": title, "submolt_name": submolt},
             headers={
                 "Authorization": f"Bearer {self.moltbook_key}",
                 "Content-Type": "application/json",
@@ -803,12 +820,104 @@ class GrazerClient:
             return None
 
     # ───────────────────────────────────────────────────────────
+    # Platform Health
+    # ───────────────────────────────────────────────────────────
+
+    def platform_status(self, platforms: Optional[List[str]] = None) -> Dict[str, Dict]:
+        """Check reachability and latency for each platform.
+
+        Args:
+            platforms: List of platform names to check (default: all known platforms).
+
+        Returns:
+            Dict mapping platform name to status dict with keys:
+                ok (bool), latency_ms (float), error (str|None), auth_configured (bool)
+        """
+        targets = platforms or list(PLATFORMS.keys())
+        results = {}
+        for name in targets:
+            info = PLATFORMS.get(name)
+            if not info:
+                results[name] = {"ok": False, "latency_ms": 0, "error": "unknown_platform", "auth_configured": False}
+                continue
+
+            auth_configured = self._has_auth(name)
+            url = info["url"]
+            headers = {}
+            if info["auth"] and auth_configured:
+                try:
+                    headers = self._auth_headers_for(name)
+                except Exception:
+                    pass
+
+            t0 = _time.monotonic()
+            try:
+                resp = self.session.get(url, headers=headers, timeout=min(self.timeout, 8), params={"limit": 1})
+                latency = (_time.monotonic() - t0) * 1000
+                results[name] = {
+                    "ok": resp.status_code < 500,
+                    "status_code": resp.status_code,
+                    "latency_ms": round(latency, 1),
+                    "error": None if resp.status_code < 400 else f"HTTP {resp.status_code}",
+                    "auth_configured": auth_configured,
+                }
+            except requests.exceptions.Timeout:
+                latency = (_time.monotonic() - t0) * 1000
+                results[name] = {"ok": False, "latency_ms": round(latency, 1), "error": "timeout", "auth_configured": auth_configured}
+            except requests.exceptions.ConnectionError:
+                latency = (_time.monotonic() - t0) * 1000
+                results[name] = {"ok": False, "latency_ms": round(latency, 1), "error": "connection_refused", "auth_configured": auth_configured}
+            except Exception as e:
+                latency = (_time.monotonic() - t0) * 1000
+                results[name] = {"ok": False, "latency_ms": round(latency, 1), "error": str(e)[:80], "auth_configured": auth_configured}
+
+        return results
+
+    def _has_auth(self, platform: str) -> bool:
+        """Check if authentication is configured for a platform."""
+        mapping = {
+            "bottube": self.bottube_key,
+            "moltbook": self.moltbook_key,
+            "clawcities": self.clawcities_key,
+            "clawsta": self.clawsta_key,
+            "fourclaw": self.fourclaw_key,
+            "pinchedin": self.pinchedin_key,
+            "clawtasks": self.clawtasks_key,
+            "clawnews": self.clawnews_key,
+            "agentchan": self.agentchan_key,
+            "clawhub": self.clawhub_token,
+        }
+        return bool(mapping.get(platform))
+
+    def _auth_headers_for(self, platform: str) -> Dict:
+        """Get auth headers for a specific platform."""
+        key_map = {
+            "moltbook": self.moltbook_key,
+            "clawsta": self.clawsta_key,
+            "fourclaw": self.fourclaw_key,
+            "pinchedin": self.pinchedin_key,
+            "clawtasks": self.clawtasks_key,
+            "clawnews": self.clawnews_key,
+            "agentchan": self.agentchan_key,
+        }
+        key = key_map.get(platform)
+        if key:
+            return {"Authorization": f"Bearer {key}"}
+        return {}
+
+    # ───────────────────────────────────────────────────────────
     # Cross-Platform
     # ───────────────────────────────────────────────────────────
 
     def discover_all(self) -> Dict[str, List[Dict]]:
-        """Discover content from all platforms."""
-        results = {
+        """Discover content from all platforms.
+
+        Returns a dict keyed by platform name. Also includes an ``_errors``
+        key mapping platform names to error strings for any platform that
+        failed during discovery, so callers can distinguish "no content"
+        from "platform unreachable".
+        """
+        results: Dict = {
             "bottube": [],
             "moltbook": [],
             "clawcities": [],
@@ -819,57 +928,27 @@ class GrazerClient:
             "clawnews": [],
             "directory": [],
             "agentchan": [],
+            "_errors": {},
         }
 
-        try:
-            results["bottube"] = self.discover_bottube(limit=10)
-        except Exception:
-            pass
+        calls = [
+            ("bottube",    lambda: self.discover_bottube(limit=10)),
+            ("moltbook",   lambda: self.discover_moltbook(limit=10)),
+            ("clawcities", lambda: self.discover_clawcities(10)),
+            ("clawsta",    lambda: self.discover_clawsta(10)),
+            ("fourclaw",   lambda: self.discover_fourclaw(board="b", limit=10)),
+            ("pinchedin",  lambda: self.discover_pinchedin(limit=10)),
+            ("clawtasks",  lambda: self.discover_clawtasks(limit=10)),
+            ("clawnews",   lambda: self.discover_clawnews(limit=10)),
+            ("directory",  lambda: self.discover_directory(limit=20)),
+            ("agentchan",  lambda: self.discover_agentchan(limit=10)),
+        ]
 
-        try:
-            results["moltbook"] = self.discover_moltbook(limit=10)
-        except Exception:
-            pass
-
-        try:
-            results["clawcities"] = self.discover_clawcities(10)
-        except Exception:
-            pass
-
-        try:
-            results["clawsta"] = self.discover_clawsta(10)
-        except Exception:
-            pass
-
-        try:
-            results["fourclaw"] = self.discover_fourclaw(board="b", limit=10)
-        except Exception:
-            pass
-
-        try:
-            results["pinchedin"] = self.discover_pinchedin(limit=10)
-        except Exception:
-            pass
-
-        try:
-            results["clawtasks"] = self.discover_clawtasks(limit=10)
-        except Exception:
-            pass
-
-        try:
-            results["clawnews"] = self.discover_clawnews(limit=10)
-        except Exception:
-            pass
-
-        try:
-            results["directory"] = self.discover_directory(limit=20)
-        except Exception:
-            pass
-
-        try:
-            results["agentchan"] = self.discover_agentchan(limit=10)
-        except Exception:
-            pass
+        for name, fn in calls:
+            try:
+                results[name] = fn()
+            except Exception as exc:
+                results["_errors"][name] = str(exc)[:120]
 
         return results
 
@@ -891,5 +970,5 @@ class GrazerClient:
             pass
 
 
-__version__ = "1.6.0"
+__version__ = "1.7.0"
 __all__ = ["GrazerClient", "ClawHubClient", "generate_svg", "svg_to_media", "generate_template_svg", "generate_llm_svg"]

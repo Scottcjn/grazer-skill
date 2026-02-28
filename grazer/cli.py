@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from grazer import GrazerClient
+from grazer import GrazerClient, PLATFORMS
 
 
 def load_config() -> dict:
@@ -23,10 +23,10 @@ def load_config() -> dict:
     return json.loads(config_path.read_text())
 
 
-def cmd_discover(args):
-    """Discover trending content."""
-    config = load_config()
-    client = GrazerClient(
+def _make_client(config: dict, **extra) -> GrazerClient:
+    """Build a GrazerClient from config with all keys populated."""
+    llm = config.get("imagegen", {})
+    return GrazerClient(
         bottube_key=config.get("bottube", {}).get("api_key"),
         moltbook_key=config.get("moltbook", {}).get("api_key"),
         clawcities_key=config.get("clawcities", {}).get("api_key"),
@@ -35,7 +35,19 @@ def cmd_discover(args):
         pinchedin_key=config.get("pinchedin", {}).get("api_key"),
         clawtasks_key=config.get("clawtasks", {}).get("api_key"),
         clawnews_key=config.get("clawnews", {}).get("api_key"),
+        agentchan_key=config.get("agentchan", {}).get("api_key"),
+        clawhub_token=config.get("clawhub", {}).get("token"),
+        llm_url=llm.get("llm_url"),
+        llm_model=llm.get("llm_model", "gpt-oss-120b"),
+        llm_api_key=llm.get("llm_api_key"),
+        **extra,
     )
+
+
+def cmd_discover(args):
+    """Discover trending content."""
+    config = load_config()
+    client = _make_client(config)
 
     if args.platform == "bottube":
         videos = client.discover_bottube(category=args.category, limit=args.limit)
@@ -112,17 +124,68 @@ def cmd_discover(args):
             print(f"  {title}")
             print(f"    {s.get('url', '')}\n")
 
+    elif args.platform == "agentchan":
+        board = args.board or "ai"
+        threads = client.discover_agentchan(board=board, limit=args.limit)
+        print(f"\n🤖 AgentChan /{board}/:\n")
+        for t in threads:
+            subject = t.get("subject", t.get("title", "(untitled)"))
+            replies = t.get("reply_count", t.get("replyCount", 0))
+            author = t.get("author_name", t.get("author", "anon"))
+            print(f"  {subject}")
+            print(f"    by {author} | {replies} replies\n")
+
     elif args.platform == "all":
         all_content = client.discover_all()
+        errors = all_content.pop("_errors", {})
         print("\n🌐 All Platforms:\n")
-        print(f"  BoTTube: {len(all_content['bottube'])} videos")
-        print(f"  Moltbook: {len(all_content['moltbook'])} posts")
-        print(f"  ClawCities: {len(all_content['clawcities'])} sites")
-        print(f"  Clawsta: {len(all_content['clawsta'])} posts")
-        print(f"  4claw: {len(all_content['fourclaw'])} threads")
-        print(f"  PinchedIn: {len(all_content['pinchedin'])} posts")
-        print(f"  ClawTasks: {len(all_content['clawtasks'])} bounties")
-        print(f"  ClawNews: {len(all_content['clawnews'])} stories\n")
+        labels = {
+            "bottube": "BoTTube videos",
+            "moltbook": "Moltbook posts",
+            "clawcities": "ClawCities sites",
+            "clawsta": "Clawsta posts",
+            "fourclaw": "4claw threads",
+            "pinchedin": "PinchedIn posts",
+            "clawtasks": "ClawTasks bounties",
+            "clawnews": "ClawNews stories",
+            "directory": "Directory services",
+            "agentchan": "AgentChan threads",
+        }
+        for key, label in labels.items():
+            count = len(all_content.get(key, []))
+            err = errors.get(key)
+            if err:
+                print(f"  {label}: OFFLINE ({err[:60]})")
+            else:
+                print(f"  {label}: {count}")
+        print()
+
+
+def cmd_status(args):
+    """Check platform health and reachability."""
+    config = load_config()
+    client = _make_client(config)
+
+    platforms = [args.platform] if args.platform and args.platform != "all" else None
+    results = client.platform_status(platforms)
+
+    print("\n📡 Platform Status:\n")
+    up_count = 0
+    for name, info in sorted(results.items()):
+        ok = info["ok"]
+        latency = info["latency_ms"]
+        err = info.get("error")
+        auth = info["auth_configured"]
+        status_icon = "UP" if ok else "DOWN"
+        auth_icon = "key" if auth else "---"
+        if ok:
+            up_count += 1
+            print(f"  [{status_icon}] {name:14s}  {latency:6.0f}ms  [{auth_icon}]")
+        else:
+            print(f"  [{status_icon}] {name:14s}  {latency:6.0f}ms  [{auth_icon}]  {err}")
+
+    total = len(results)
+    print(f"\n  {up_count}/{total} platforms reachable\n")
 
 
 def cmd_stats(args):
@@ -235,6 +298,15 @@ def cmd_post(args):
         print(f"\n✓ Bounty posted on ClawTasks")
         print(f"  ID: {result.get('id', 'ok')}")
 
+    elif args.platform == "agentchan":
+        board = args.board or "ai"
+        result = client.post_agentchan(board=board, content=args.message)
+        if result:
+            print(f"\n✓ Thread posted on AgentChan /{board}/")
+            print(f"  ID: {result.get('data', {}).get('id', result.get('id', 'ok'))}")
+        else:
+            print("\n✗ Failed to post on AgentChan")
+
 
 def cmd_clawhub(args):
     """ClawHub skill registry commands."""
@@ -317,7 +389,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="🐄 Grazer - Content discovery for AI agents"
     )
-    parser.add_argument("--version", action="version", version="grazer 1.5.0")
+    parser.add_argument("--version", action="version", version="grazer 1.7.0")
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
@@ -325,7 +397,7 @@ def main():
     discover_parser = subparsers.add_parser("discover", help="Discover trending content")
     discover_parser.add_argument(
         "-p", "--platform",
-        choices=["bottube", "moltbook", "clawcities", "clawsta", "fourclaw", "pinchedin", "pinchedin-jobs", "clawtasks", "clawnews", "all"],
+        choices=["bottube", "moltbook", "clawcities", "clawsta", "fourclaw", "pinchedin", "pinchedin-jobs", "clawtasks", "clawnews", "agentchan", "all"],
         default="all",
         help="Platform to search"
     )
@@ -343,6 +415,15 @@ def main():
         help="Platform"
     )
 
+    # status command
+    status_parser = subparsers.add_parser("status", help="Check platform health and reachability")
+    status_parser.add_argument(
+        "-p", "--platform",
+        choices=list(PLATFORMS.keys()) + ["all"],
+        default="all",
+        help="Platform to check (default: all)"
+    )
+
     # comment command
     comment_parser = subparsers.add_parser("comment", help="Reply to a thread or comment")
     comment_parser.add_argument(
@@ -358,7 +439,7 @@ def main():
     post_parser = subparsers.add_parser("post", help="Create a new post or thread")
     post_parser.add_argument(
         "-p", "--platform",
-        choices=["fourclaw", "moltbook", "pinchedin", "clawtasks"],
+        choices=["fourclaw", "moltbook", "pinchedin", "clawtasks", "agentchan"],
         required=True,
         help="Platform"
     )
@@ -395,6 +476,8 @@ def main():
     try:
         if args.command == "discover":
             cmd_discover(args)
+        elif args.command == "status":
+            cmd_status(args)
         elif args.command == "stats":
             cmd_stats(args)
         elif args.command == "comment":
