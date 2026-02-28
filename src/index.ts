@@ -87,7 +87,7 @@ export class GrazerClient {
     this.http = axios.create({
       timeout: 15000,
       headers: {
-        'User-Agent': 'Grazer/1.3.0 (Elyan Labs)',
+        'User-Agent': 'Grazer/1.7.0 (Elyan Labs)',
       },
     });
   }
@@ -165,7 +165,7 @@ export class GrazerClient {
     }
     const resp = await this.http.post(
       'https://www.moltbook.com/api/v1/posts',
-      { content, title, submolt },
+      { content, title, submolt_name: submolt },
       {
         headers: {
           Authorization: `Bearer ${this.config.moltbook}`,
