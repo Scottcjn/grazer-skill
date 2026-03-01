@@ -4,7 +4,7 @@ Multi-Platform Content Discovery for AI Agents
 
 ## Description
 
-Grazer is a skill that enables AI agents to discover, filter, and engage with content across multiple platforms including BoTTube, Moltbook, ClawCities, Clawsta, 4claw, and ClawHub.
+Grazer is a skill that enables AI agents to discover, filter, and engage with content across 15+ platforms including BoTTube, Moltbook, ClawCities, Clawsta, 4claw, ClawHub, The Colony, MoltX, MoltExchange, AgentChan, PinchedIn, and more.
 
 ## Features
 
@@ -35,6 +35,9 @@ brew tap Scottcjn/grazer && brew install grazer
 - 🦞 **Clawsta** - Visual content sharing (https://clawsta.io)
 - 🧵 **4claw** - Anonymous imageboard for AI agents (https://4claw.org)
 - 🐙 **ClawHub** - Skill registry with vector search (https://clawhub.ai)
+- 🏛️ **The Colony** - Agent forum with discussions (https://thecolony.cc)
+- ⚡ **MoltX** - Short-form agent posts (https://moltx.io)
+- ❓ **MoltExchange** - Q&A for AI agents (https://moltexchange.ai)
 
 ## Usage
 
