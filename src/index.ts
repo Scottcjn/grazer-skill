@@ -18,6 +18,9 @@ export interface GrazerConfig {
   clawsta?: string;
   fourclaw?: string;
   youtube?: string;
+  thecolony?: string;
+  moltx?: string;
+  moltexchange?: string;
   llmUrl?: string;
   llmModel?: string;
   llmApiKey?: string;
@@ -78,16 +81,45 @@ export interface FourclawBoard {
   threadCount: number;
 }
 
+export interface ColonyPost {
+  id: string;
+  title: string;
+  body: string;
+  post_type: string;
+  author: { display_name?: string; username?: string };
+  comment_count: number;
+  created_at: string;
+}
+
+export interface MoltXPost {
+  id: string;
+  content: string;
+  author_display_name: string;
+  like_count: number;
+  reply_count: number;
+  created_at: string;
+}
+
+export interface MoltExchangeQuestion {
+  id: string;
+  title: string;
+  body: string;
+  author: string;
+  answer_count: number;
+  created_at: string;
+}
+
 export class GrazerClient {
   private http: AxiosInstance;
   private config: GrazerConfig;
+  private colonyJwt: string | null = null;
 
   constructor(config: GrazerConfig) {
     this.config = config;
     this.http = axios.create({
       timeout: 15000,
       headers: {
-        'User-Agent': 'Grazer/1.7.0 (Elyan Labs)',
+        'User-Agent': 'Grazer/1.8.0 (Elyan Labs)',
       },
     });
   }
@@ -381,6 +413,155 @@ export class GrazerClient {
   }
 
   // ───────────────────────────────────────────────────────────
+  // The Colony
+  // ───────────────────────────────────────────────────────────
+
+  private async colonyAuth(): Promise<Record<string, string>> {
+    if (!this.config.thecolony) {
+      throw new Error('The Colony API key required');
+    }
+    if (!this.colonyJwt) {
+      const resp = await this.http.post('https://thecolony.cc/api/v1/auth/token', {
+        api_key: this.config.thecolony,
+      });
+      this.colonyJwt = resp.data.access_token || resp.data.token || '';
+    }
+    return { Authorization: `Bearer ${this.colonyJwt}`, 'Content-Type': 'application/json' };
+  }
+
+  async discoverColony(options: {
+    colony?: string;
+    limit?: number;
+  } = {}): Promise<ColonyPost[]> {
+    const { colony, limit = 20 } = options;
+    const params: any = { limit };
+    if (colony) params.colony = colony;
+    try {
+      const headers = this.config.thecolony ? await this.colonyAuth() : {};
+      const resp = await this.http.get('https://thecolony.cc/api/v1/posts', { params, headers });
+      const data = resp.data;
+      return (data.posts || data.results || (Array.isArray(data) ? data : [])).slice(0, limit);
+    } catch {
+      return [];
+    }
+  }
+
+  async postColony(title: string, body: string, postType = 'discussion'): Promise<any> {
+    const headers = await this.colonyAuth();
+    const resp = await this.http.post(
+      'https://thecolony.cc/api/v1/posts',
+      { title, body, post_type: postType },
+      { headers }
+    );
+    return resp.data;
+  }
+
+  async replyColony(postId: string, body: string): Promise<any> {
+    const headers = await this.colonyAuth();
+    const resp = await this.http.post(
+      `https://thecolony.cc/api/v1/posts/${postId}/comments`,
+      { body },
+      { headers }
+    );
+    return resp.data;
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // MoltX
+  // ───────────────────────────────────────────────────────────
+
+  private moltxHeaders(): Record<string, string> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (this.config.moltx) {
+      headers.Authorization = `Bearer ${this.config.moltx}`;
+    }
+    return headers;
+  }
+
+  async discoverMoltX(limit = 20): Promise<MoltXPost[]> {
+    try {
+      const resp = await this.http.get('https://moltx.io/v1/posts', {
+        params: { limit },
+        headers: this.moltxHeaders(),
+      });
+      const data = resp.data;
+      if (data?.data?.posts) return data.data.posts.slice(0, limit);
+      return (data.posts || (Array.isArray(data) ? data : [])).slice(0, limit);
+    } catch {
+      return [];
+    }
+  }
+
+  async discoverMoltXTrending(limit = 20): Promise<MoltXPost[]> {
+    try {
+      const resp = await this.http.get('https://moltx.io/v1/posts/trending', {
+        params: { limit },
+        headers: this.moltxHeaders(),
+      });
+      const data = resp.data;
+      if (data?.data?.posts) return data.data.posts.slice(0, limit);
+      return (data.posts || (Array.isArray(data) ? data : [])).slice(0, limit);
+    } catch {
+      return this.discoverMoltX(limit);
+    }
+  }
+
+  async postMoltX(content: string): Promise<any> {
+    if (!this.config.moltx) throw new Error('MoltX API key required');
+    const resp = await this.http.post(
+      'https://moltx.io/v1/posts',
+      { content },
+      { headers: this.moltxHeaders() }
+    );
+    return resp.data;
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // MoltExchange
+  // ───────────────────────────────────────────────────────────
+
+  private moltexchangeHeaders(): Record<string, string> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (this.config.moltexchange) {
+      headers.Authorization = `Bearer ${this.config.moltexchange}`;
+    }
+    return headers;
+  }
+
+  async discoverMoltExchange(limit = 20): Promise<MoltExchangeQuestion[]> {
+    try {
+      const resp = await this.http.get('https://moltexchange.ai/v1/questions', {
+        params: { limit },
+        headers: this.moltexchangeHeaders(),
+      });
+      const data = resp.data;
+      return (data.questions || (Array.isArray(data) ? data : [])).slice(0, limit);
+    } catch {
+      return [];
+    }
+  }
+
+  async postMoltExchange(title: string, body: string): Promise<any> {
+    if (!this.config.moltexchange) throw new Error('MoltExchange API key required');
+    const resp = await this.http.post(
+      'https://moltexchange.ai/v1/questions',
+      { title, body },
+      { headers: this.moltexchangeHeaders() }
+    );
+    return resp.data;
+  }
+
+  async answerMoltExchange(questionId: string, body: string): Promise<any> {
+    if (!this.config.moltexchange) throw new Error('MoltExchange API key required');
+    const resp = await this.http.post(
+      `https://moltexchange.ai/v1/questions/${questionId}/answers`,
+      { body },
+      { headers: this.moltexchangeHeaders() }
+    );
+    return resp.data;
+  }
+
+  // ───────────────────────────────────────────────────────────
   // Cross-Platform
   // ───────────────────────────────────────────────────────────
 
@@ -391,17 +572,23 @@ export class GrazerClient {
     clawsta: ClawstaPost[];
     fourclaw: FourclawThread[];
     youtube: YouTubeVideo[];
+    thecolony: ColonyPost[];
+    moltx: MoltXPost[];
+    moltexchange: MoltExchangeQuestion[];
   }> {
-    const [bottube, moltbook, clawcities, clawsta, fourclaw, youtube] = await Promise.all([
+    const [bottube, moltbook, clawcities, clawsta, fourclaw, youtube, thecolony, moltx, moltexchange] = await Promise.all([
       this.discoverBottube({ limit: 10 }).catch(() => []),
       this.discoverMoltbook({ limit: 10 }).catch(() => []),
       this.discoverClawCities(10).catch(() => []),
       this.discoverClawsta(10).catch(() => []),
       this.discoverFourclaw({ board: 'b', limit: 10 }).catch(() => []),
       this.discoverYouTube({ limit: 10 }).catch(() => []),
+      this.discoverColony({ limit: 10 }).catch(() => []),
+      this.discoverMoltX(10).catch(() => []),
+      this.discoverMoltExchange(10).catch(() => []),
     ]);
 
-    return { bottube, moltbook, clawcities, clawsta, fourclaw, youtube };
+    return { bottube, moltbook, clawcities, clawsta, fourclaw, youtube, thecolony, moltx, moltexchange };
   }
 
   // ───────────────────────────────────────────────────────────

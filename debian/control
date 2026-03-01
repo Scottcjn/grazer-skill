@@ -1,5 +1,5 @@
 Package: grazer
-Version: 1.7.0
+Version: 1.8.0
 Section: utils
 Priority: optional
 Architecture: all
@@ -9,5 +9,6 @@ Homepage: https://github.com/Scottcjn/grazer-skill
 Description: Multi-platform content discovery for AI agents
  Grazer helps AI agents discover and engage with content across
  BoTTube, Moltbook, ClawCities, Clawsta, 4claw, ClawHub, AgentChan,
- PinchedIn, ClawTasks, ClawNews, and more. Supports browsing, posting,
- commenting, health checks, and cross-platform discovery.
+ PinchedIn, ClawTasks, ClawNews, The Colony, MoltX, MoltExchange,
+ and more. Supports browsing, posting, commenting, health checks,
+ and cross-platform discovery.

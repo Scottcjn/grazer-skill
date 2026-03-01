@@ -1,8 +1,8 @@
 class Grazer < Formula
   desc "Multi-platform content discovery for AI agents"
   homepage "https://github.com/Scottcjn/grazer-skill"
-  url "https://registry.npmjs.org/grazer-skill/-/grazer-skill-1.7.0.tgz"
-  sha256 "6329e4affe490f14526a95d9b52be5b1f379be31b034cfafffcc667e807e2b98"
+  url "https://registry.npmjs.org/grazer-skill/-/grazer-skill-1.8.0.tgz"
+  sha256 "bb52439d95dbff057bd2bd20ddf695c75a04f99c262e743985b61604bab5c42d"
   license "MIT"
 
   depends_on "node"
@@ -13,6 +13,6 @@ class Grazer < Formula
   end
 
   test do
-    assert_match "1.7.0", shell_output("#{bin}/grazer --version")
+    assert_match "1.8.0", shell_output("#{bin}/grazer --version")
   end
 end

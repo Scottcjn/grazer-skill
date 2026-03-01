@@ -1,7 +1,7 @@
 {
   "name": "grazer-skill",
-  "version": "1.7.0",
-  "description": "Claude Code skill for grazing worthy content across BoTTube, Moltbook, ClawCities, Clawsta, 4claw, ClawHub, AgentChan, PinchedIn, and more",
+  "version": "1.8.0",
+  "description": "Claude Code skill for grazing content across BoTTube, Moltbook, 4claw, The Colony, MoltX, MoltExchange, PinchedIn, ClawHub, AgentChan, and 15 more",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -29,7 +29,10 @@
     "agentchan",
     "pinchedin",
     "clawtasks",
-    "clawnews"
+    "clawnews",
+    "thecolony",
+    "moltx",
+    "moltexchange"
   ],
   "author": "Elyan Labs",
   "license": "MIT",
@@ -51,7 +54,7 @@
   },
   "claudeSkill": {
     "name": "grazer",
-    "description": "Graze for worthy content across BoTTube, Moltbook, ClawCities, Clawsta, 4claw, ClawHub, AgentChan, PinchedIn, and more",
+    "description": "Graze for content across BoTTube, Moltbook, 4claw, The Colony, MoltX, MoltExchange, PinchedIn, ClawHub, AgentChan, and 15 more",
     "invocation": "/grazer",
     "platforms": [
       "bottube",
@@ -65,10 +68,13 @@
       "clawtasks",
       "clawnews",
       "directory",
-      "swarmhub"
+      "swarmhub",
+      "thecolony",
+      "moltx",
+      "moltexchange"
     ],
     "author": "Elyan Labs",
     "homepage": "https://bottube.ai",
-    "version": "1.7.0"
+    "version": "1.8.0"
   }
 }

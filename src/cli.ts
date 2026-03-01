@@ -25,12 +25,12 @@ function loadConfig(): any {
 program
   .name('grazer')
   .description('Graze for worthy content across social platforms')
-  .version('1.7.0');
+  .version('1.8.0');
 
 program
   .command('discover')
   .description('Discover trending content')
-  .option('-p, --platform <platform>', 'Platform: bottube, moltbook, clawcities, clawsta, fourclaw, youtube, all')
+  .option('-p, --platform <platform>', 'Platform: bottube, moltbook, clawcities, clawsta, fourclaw, youtube, thecolony, moltx, moltexchange, all')
   .option('-c, --category <category>', 'BoTTube category')
   .option('-s, --submolt <submolt>', 'Moltbook submolt')
   .option('-b, --board <board>', '4claw board (e.g. b, singularity, crypto)')
@@ -44,6 +44,9 @@ program
       clawsta: config.clawsta?.api_key,
       fourclaw: config.fourclaw?.api_key,
       youtube: config.youtube?.api_key,
+      thecolony: config.thecolony?.api_key,
+      moltx: config.moltx?.api_key,
+      moltexchange: config.moltexchange?.api_key,
       llmUrl: config.llm?.url,
       llmModel: config.llm?.model,
       llmApiKey: config.llm?.api_key,
@@ -108,6 +111,31 @@ program
         console.log(`  ${v.title}`);
         console.log(`    by ${v.channelTitle} | ${v.url}\n`);
       });
+    } else if (options.platform === 'thecolony') {
+      const posts = await client.discoverColony({ limit });
+      console.log('\n🏛️ The Colony Posts:\n');
+      posts.forEach((p: any) => {
+        const author = typeof p.author === 'object'
+          ? (p.author?.display_name || p.author?.username || '?')
+          : (p.author || '?');
+        console.log(`  ${p.title || '(untitled)'}`);
+        console.log(`    [${p.post_type || 'post'}] by ${author} | ${p.comment_count || 0} comments\n`);
+      });
+    } else if (options.platform === 'moltx') {
+      const posts = await client.discoverMoltX(limit);
+      console.log('\n⚡ MoltX Posts:\n');
+      posts.forEach((p: any) => {
+        const content = (p.content || '').slice(0, 80);
+        console.log(`  ${content}${content.length >= 80 ? '...' : ''}`);
+        console.log(`    by ${p.author_display_name || '?'} | ${p.like_count || 0} likes | ${p.reply_count || 0} replies\n`);
+      });
+    } else if (options.platform === 'moltexchange') {
+      const questions = await client.discoverMoltExchange(limit);
+      console.log('\n❓ MoltExchange Questions:\n');
+      questions.forEach((q: any) => {
+        console.log(`  ${q.title || '(untitled)'}`);
+        console.log(`    by ${q.author || '?'} | ${q.answer_count || 0} answers\n`);
+      });
     } else if (options.platform === 'all') {
       const all = await client.discoverAll();
       console.log('\n🌐 All Platforms:\n');
@@ -115,7 +143,10 @@ program
       console.log(`  Moltbook: ${all.moltbook.length} posts`);
       console.log(`  ClawCities: ${all.clawcities.length} sites`);
       console.log(`  Clawsta: ${all.clawsta.length} posts`);
-      console.log(`  4claw: ${all.fourclaw.length} threads\n`);
+      console.log(`  4claw: ${all.fourclaw.length} threads`);
+      console.log(`  The Colony: ${all.thecolony.length} posts`);
+      console.log(`  MoltX: ${all.moltx.length} posts`);
+      console.log(`  MoltExchange: ${all.moltexchange.length} questions\n`);
     }
   });
 
@@ -140,7 +171,7 @@ program
 program
   .command('comment')
   .description('Reply to a thread or leave a comment')
-  .requiredOption('-p, --platform <platform>', 'Platform: clawcities, clawsta, fourclaw')
+  .requiredOption('-p, --platform <platform>', 'Platform: clawcities, clawsta, fourclaw, thecolony, moltexchange')
   .option('-t, --target <target>', 'Target: site name, post/thread ID')
   .requiredOption('-m, --message <message>', 'Comment message')
   .action(async (options) => {
@@ -151,6 +182,8 @@ program
       clawsta: config.clawsta?.api_key,
       fourclaw: config.fourclaw?.api_key,
       youtube: config.youtube?.api_key,
+      thecolony: config.thecolony?.api_key,
+      moltexchange: config.moltexchange?.api_key,
     });
 
     if (options.platform === 'clawcities') {
@@ -169,13 +202,29 @@ program
       const result = await client.replyFourclaw(options.target, options.message);
       console.log(`\n✓ Reply posted to thread ${options.target.slice(0, 8)}...`);
       console.log('  ID:', result.reply?.id || 'ok');
+    } else if (options.platform === 'thecolony') {
+      if (!options.target) {
+        console.error('Error: --target post_id required for Colony replies');
+        process.exit(1);
+      }
+      const result = await client.replyColony(options.target, options.message);
+      console.log('\n✓ Reply posted to Colony post', options.target);
+      console.log('  ID:', result.id || 'ok');
+    } else if (options.platform === 'moltexchange') {
+      if (!options.target) {
+        console.error('Error: --target question_id required for MoltExchange answers');
+        process.exit(1);
+      }
+      const result = await client.answerMoltExchange(options.target, options.message);
+      console.log('\n✓ Answer posted to MoltExchange question', options.target);
+      console.log('  ID:', result.id || 'ok');
     }
   });
 
 program
   .command('post')
   .description('Create a new post or thread')
-  .requiredOption('-p, --platform <platform>', 'Platform: fourclaw, moltbook')
+  .requiredOption('-p, --platform <platform>', 'Platform: fourclaw, moltbook, thecolony, moltx, moltexchange')
   .option('-b, --board <board>', 'Board/submolt name')
   .requiredOption('-t, --title <title>', 'Post/thread title')
   .requiredOption('-m, --message <message>', 'Post content')
@@ -185,6 +234,9 @@ program
       moltbook: config.moltbook?.api_key,
       fourclaw: config.fourclaw?.api_key,
       youtube: config.youtube?.api_key,
+      thecolony: config.thecolony?.api_key,
+      moltx: config.moltx?.api_key,
+      moltexchange: config.moltexchange?.api_key,
     });
 
     if (options.platform === 'fourclaw') {
@@ -200,6 +252,18 @@ program
     } else if (options.platform === 'moltbook') {
       const result = await client.postMoltbook(options.message, options.title, options.board || 'tech');
       console.log(`\n✓ Posted to m/${options.board || 'tech'}`);
+      console.log(`  ID: ${result.id || 'ok'}`);
+    } else if (options.platform === 'thecolony') {
+      const result = await client.postColony(options.title, options.message);
+      console.log('\n✓ Posted to The Colony');
+      console.log(`  ID: ${result.id || 'ok'}`);
+    } else if (options.platform === 'moltx') {
+      const result = await client.postMoltX(options.message);
+      console.log('\n✓ Posted to MoltX');
+      console.log(`  ID: ${result.id || 'ok'}`);
+    } else if (options.platform === 'moltexchange') {
+      const result = await client.postMoltExchange(options.title, options.message);
+      console.log('\n✓ Question posted to MoltExchange');
       console.log(`  ID: ${result.id || 'ok'}`);
     }
   });
