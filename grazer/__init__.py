@@ -25,6 +25,9 @@ PLATFORMS = {
     "swarmhub":   {"url": "https://swarmhub.onrender.com/api/v1/agents", "auth": False},
     "clawhub":    {"url": "https://clawhub.ai/api/v1/skills/trending", "auth": False},
     "clawcities": {"url": "https://clawcities.com",                   "auth": False},
+    "thecolony":  {"url": "https://thecolony.cc/api/v1/colonies",     "auth": True},
+    "moltx":      {"url": "https://moltx.io/v1/posts",                 "auth": True},
+    "moltexchange": {"url": "https://moltexchange.ai/v1/questions",   "auth": True},
 }
 
 
@@ -43,6 +46,9 @@ class GrazerClient:
         clawtasks_key: Optional[str] = None,
         clawnews_key: Optional[str] = None,
         agentchan_key: Optional[str] = None,
+        thecolony_key: Optional[str] = None,
+        moltx_key: Optional[str] = None,
+        moltexchange_key: Optional[str] = None,
         llm_url: Optional[str] = None,
         llm_model: str = "gpt-oss-120b",
         llm_api_key: Optional[str] = None,
@@ -58,13 +64,17 @@ class GrazerClient:
         self.clawtasks_key = clawtasks_key
         self.clawnews_key = clawnews_key
         self.agentchan_key = agentchan_key
+        self.thecolony_key = thecolony_key
+        self.moltx_key = moltx_key
+        self.moltexchange_key = moltexchange_key
+        self._colony_jwt = None  # Cached JWT from API key exchange
         self._clawhub = ClawHubClient(token=clawhub_token, timeout=timeout) if clawhub_token else ClawHubClient(timeout=timeout)
         self.llm_url = llm_url
         self.llm_model = llm_model
         self.llm_api_key = llm_api_key
         self.timeout = timeout
         self.session = requests.Session()
-        self.session.headers.update({"User-Agent": "Grazer/1.7.0 (Elyan Labs)"})
+        self.session.headers.update({"User-Agent": "Grazer/1.8.0 (Elyan Labs)"})
 
     # ───────────────────────────────────────────────────────────
     # BoTTube
@@ -820,6 +830,203 @@ class GrazerClient:
             return None
 
     # ───────────────────────────────────────────────────────────
+    # The Colony (thecolony.cc) — Agent forum with colonies
+    # ───────────────────────────────────────────────────────────
+
+    def _colony_auth(self) -> Dict:
+        """Exchange API key for JWT bearer token (cached)."""
+        if not self.thecolony_key:
+            raise ValueError("The Colony API key required")
+        if not self._colony_jwt:
+            resp = self.session.post(
+                "https://thecolony.cc/api/v1/auth/token",
+                json={"api_key": self.thecolony_key},
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            self._colony_jwt = resp.json().get("access_token", resp.json().get("token", ""))
+        return {"Authorization": f"Bearer {self._colony_jwt}", "Content-Type": "application/json"}
+
+    def discover_colony(self, colony: Optional[str] = None, limit: int = 20) -> List[Dict]:
+        """Discover posts from The Colony. Optionally filter by colony name."""
+        headers = self._colony_auth() if self.thecolony_key else {}
+        params = {"limit": limit}
+        if colony:
+            params["colony"] = colony
+        resp = self.session.get(
+            "https://thecolony.cc/api/v1/posts",
+            params=params,
+            headers=headers,
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data.get("posts", data) if isinstance(data, dict) else data
+
+    def list_colonies(self) -> List[Dict]:
+        """List all available colonies."""
+        headers = self._colony_auth() if self.thecolony_key else {}
+        resp = self.session.get(
+            "https://thecolony.cc/api/v1/colonies",
+            headers=headers,
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data.get("colonies", data) if isinstance(data, dict) else data
+
+    def post_colony(self, colony: str, content: str, post_type: str = "discussion") -> Dict:
+        """Post to a Colony community.
+
+        Args:
+            colony: Colony slug (e.g. 'general', 'agent-economy', 'cryptocurrency')
+            content: Post body text
+            post_type: One of: finding, question, analysis, human_request, discussion
+        """
+        headers = self._colony_auth()
+        resp = self.session.post(
+            f"https://thecolony.cc/api/v1/colonies/{colony}/posts",
+            json={"content": content, "type": post_type},
+            headers=headers,
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def reply_colony(self, post_id: str, content: str) -> Dict:
+        """Reply to a Colony post."""
+        headers = self._colony_auth()
+        resp = self.session.post(
+            f"https://thecolony.cc/api/v1/posts/{post_id}/replies",
+            json={"content": content},
+            headers=headers,
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    # ───────────────────────────────────────────────────────────
+    # MoltX (moltx.io) — Twitter-style for AI agents
+    # ───────────────────────────────────────────────────────────
+
+    def _moltx_headers(self) -> Dict:
+        if not self.moltx_key:
+            raise ValueError("MoltX API key required")
+        return {"Authorization": f"Bearer {self.moltx_key}", "Content-Type": "application/json"}
+
+    def discover_moltx(self, limit: int = 20) -> List[Dict]:
+        """Discover posts from MoltX."""
+        headers = self._moltx_headers() if self.moltx_key else {}
+        try:
+            resp = self.session.get(
+                "https://moltx.io/v1/posts",
+                params={"limit": limit},
+                headers=headers,
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            # MoltX wraps in {success: true, data: {posts: [...]}}
+            if isinstance(data, dict) and "data" in data:
+                return data["data"].get("posts", [])[:limit]
+            return data.get("posts", data) if isinstance(data, dict) else data
+        except Exception:
+            return []
+
+    def discover_moltx_trending(self, limit: int = 20) -> List[Dict]:
+        """Discover trending agents on MoltX."""
+        headers = self._moltx_headers() if self.moltx_key else {}
+        try:
+            resp = self.session.get(
+                "https://moltx.io/v1/agents/trending",
+                params={"limit": limit},
+                headers=headers,
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("agents", data) if isinstance(data, dict) else data
+        except Exception:
+            return []
+
+    def post_moltx(self, content: str) -> Dict:
+        """Post to MoltX (requires EVM wallet verification)."""
+        resp = self.session.post(
+            "https://moltx.io/v1/posts",
+            json={"content": content},
+            headers=self._moltx_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    # ───────────────────────────────────────────────────────────
+    # MoltExchange (moltexchange.ai) — Q&A for AI agents
+    # ───────────────────────────────────────────────────────────
+
+    def _moltexchange_headers(self) -> Dict:
+        if not self.moltexchange_key:
+            raise ValueError("MoltExchange API key required")
+        return {"Authorization": f"Bearer {self.moltexchange_key}", "Content-Type": "application/json"}
+
+    def discover_moltexchange(self, limit: int = 20) -> List[Dict]:
+        """Discover questions from MoltExchange."""
+        headers = self._moltexchange_headers() if self.moltexchange_key else {}
+        try:
+            resp = self.session.get(
+                "https://moltexchange.ai/v1/questions",
+                params={"limit": limit},
+                headers=headers,
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("questions", data) if isinstance(data, dict) else data
+        except Exception:
+            return []
+
+    def discover_moltexchange_trending(self, limit: int = 20) -> List[Dict]:
+        """Discover trending topics on MoltExchange."""
+        headers = self._moltexchange_headers() if self.moltexchange_key else {}
+        try:
+            resp = self.session.get(
+                "https://moltexchange.ai/v1/trending",
+                params={"limit": limit},
+                headers=headers,
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("topics", data) if isinstance(data, dict) else data
+        except Exception:
+            return []
+
+    def post_moltexchange(self, title: str, body: str, tags: Optional[List[str]] = None) -> Dict:
+        """Post a question on MoltExchange (requires social verification)."""
+        payload = {"title": title, "body": body}
+        if tags:
+            payload["tags"] = tags
+        resp = self.session.post(
+            "https://moltexchange.ai/v1/questions",
+            json=payload,
+            headers=self._moltexchange_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def answer_moltexchange(self, question_id: str, body: str) -> Dict:
+        """Answer a question on MoltExchange."""
+        resp = self.session.post(
+            f"https://moltexchange.ai/v1/questions/{question_id}/answers",
+            json={"body": body},
+            headers=self._moltexchange_headers(),
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    # ───────────────────────────────────────────────────────────
     # Platform Health
     # ───────────────────────────────────────────────────────────
 
@@ -886,6 +1093,9 @@ class GrazerClient:
             "clawnews": self.clawnews_key,
             "agentchan": self.agentchan_key,
             "clawhub": self.clawhub_token,
+            "thecolony": self.thecolony_key,
+            "moltx": self.moltx_key,
+            "moltexchange": self.moltexchange_key,
         }
         return bool(mapping.get(platform))
 
@@ -899,6 +1109,8 @@ class GrazerClient:
             "clawtasks": self.clawtasks_key,
             "clawnews": self.clawnews_key,
             "agentchan": self.agentchan_key,
+            "moltx": self.moltx_key,
+            "moltexchange": self.moltexchange_key,
         }
         key = key_map.get(platform)
         if key:
@@ -928,20 +1140,26 @@ class GrazerClient:
             "clawnews": [],
             "directory": [],
             "agentchan": [],
+            "thecolony": [],
+            "moltx": [],
+            "moltexchange": [],
             "_errors": {},
         }
 
         calls = [
-            ("bottube",    lambda: self.discover_bottube(limit=10)),
-            ("moltbook",   lambda: self.discover_moltbook(limit=10)),
-            ("clawcities", lambda: self.discover_clawcities(10)),
-            ("clawsta",    lambda: self.discover_clawsta(10)),
-            ("fourclaw",   lambda: self.discover_fourclaw(board="b", limit=10)),
-            ("pinchedin",  lambda: self.discover_pinchedin(limit=10)),
-            ("clawtasks",  lambda: self.discover_clawtasks(limit=10)),
-            ("clawnews",   lambda: self.discover_clawnews(limit=10)),
-            ("directory",  lambda: self.discover_directory(limit=20)),
-            ("agentchan",  lambda: self.discover_agentchan(limit=10)),
+            ("bottube",       lambda: self.discover_bottube(limit=10)),
+            ("moltbook",      lambda: self.discover_moltbook(limit=10)),
+            ("clawcities",    lambda: self.discover_clawcities(10)),
+            ("clawsta",       lambda: self.discover_clawsta(10)),
+            ("fourclaw",      lambda: self.discover_fourclaw(board="b", limit=10)),
+            ("pinchedin",     lambda: self.discover_pinchedin(limit=10)),
+            ("clawtasks",     lambda: self.discover_clawtasks(limit=10)),
+            ("clawnews",      lambda: self.discover_clawnews(limit=10)),
+            ("directory",     lambda: self.discover_directory(limit=20)),
+            ("agentchan",     lambda: self.discover_agentchan(limit=10)),
+            ("thecolony",     lambda: self.discover_colony(limit=10)),
+            ("moltx",         lambda: self.discover_moltx(limit=10)),
+            ("moltexchange",  lambda: self.discover_moltexchange(limit=10)),
         ]
 
         for name, fn in calls:
@@ -970,5 +1188,5 @@ class GrazerClient:
             pass
 
 
-__version__ = "1.7.0"
+__version__ = "1.8.0"
 __all__ = ["GrazerClient", "ClawHubClient", "generate_svg", "svg_to_media", "generate_template_svg", "generate_llm_svg"]

@@ -36,6 +36,9 @@ def _make_client(config: dict, **extra) -> GrazerClient:
         clawtasks_key=config.get("clawtasks", {}).get("api_key"),
         clawnews_key=config.get("clawnews", {}).get("api_key"),
         agentchan_key=config.get("agentchan", {}).get("api_key"),
+        thecolony_key=config.get("thecolony", {}).get("api_key"),
+        moltx_key=config.get("moltx", {}).get("api_key"),
+        moltexchange_key=config.get("moltexchange", {}).get("api_key"),
         clawhub_token=config.get("clawhub", {}).get("token"),
         llm_url=llm.get("llm_url"),
         llm_model=llm.get("llm_model", "gpt-oss-120b"),
@@ -135,6 +138,46 @@ def cmd_discover(args):
             print(f"  {subject}")
             print(f"    by {author} | {replies} replies\n")
 
+    elif args.platform == "thecolony":
+        colony = args.board or None
+        posts = client.discover_colony(colony=colony, limit=args.limit)
+        label = f"c/{colony}" if colony else "all"
+        print(f"\n🏰 The Colony {label}:\n")
+        for p in posts:
+            title = p.get("title", "")
+            body = p.get("body", p.get("safe_text", ""))[:60]
+            if len(p.get("body", "")) > 60:
+                body += "..."
+            author_data = p.get("author", {})
+            author = author_data.get("display_name", author_data.get("username", "?")) if isinstance(author_data, dict) else str(author_data)
+            ptype = p.get("post_type", p.get("type", "discussion"))
+            comments = p.get("comment_count", 0)
+            print(f"  {title}")
+            print(f"    [{ptype}] by {author} | {comments} comments | id:{p.get('id', '?')[:8]}\n")
+
+    elif args.platform == "moltx":
+        posts = client.discover_moltx(limit=args.limit)
+        print("\n📱 MoltX Feed:\n")
+        for p in posts:
+            content = p.get("content", "")[:80]
+            if len(p.get("content", "")) > 80:
+                content += "..."
+            author = p.get("author_display_name", p.get("author_name", "?"))
+            likes = p.get("like_count", 0)
+            replies = p.get("reply_count", 0)
+            print(f"  {content}")
+            print(f"    by {author} | {likes} likes | {replies} replies\n")
+
+    elif args.platform == "moltexchange":
+        questions = client.discover_moltexchange(limit=args.limit)
+        print("\n🔄 MoltExchange Questions:\n")
+        for q in questions:
+            title = q.get("title", q.get("content", "?")[:60])
+            answers = q.get("answer_count", q.get("answers", 0))
+            author = q.get("author", q.get("agent_name", "?"))
+            print(f"  {title}")
+            print(f"    by {author} | {answers} answers\n")
+
     elif args.platform == "all":
         all_content = client.discover_all()
         errors = all_content.pop("_errors", {})
@@ -150,6 +193,9 @@ def cmd_discover(args):
             "clawnews": "ClawNews stories",
             "directory": "Directory services",
             "agentchan": "AgentChan threads",
+            "thecolony": "Colony posts",
+            "moltx": "MoltX posts",
+            "moltexchange": "MoltExchange questions",
         }
         for key, label in labels.items():
             count = len(all_content.get(key, []))
@@ -241,6 +287,15 @@ def cmd_comment(args):
             print("Error: --target thread_id required for 4claw replies")
             sys.exit(1)
 
+    elif args.platform == "thecolony":
+        if args.target:
+            result = client.reply_colony(args.target, args.message)
+            print(f"\n✓ Reply posted to Colony post {args.target[:8]}...")
+            print(f"  ID: {result.get('id', 'ok')}")
+        else:
+            print("Error: --target post_id required for Colony replies")
+            sys.exit(1)
+
 
 def _get_llm_config(config: dict) -> dict:
     """Extract LLM config for image generation."""
@@ -306,6 +361,23 @@ def cmd_post(args):
             print(f"  ID: {result.get('data', {}).get('id', result.get('id', 'ok'))}")
         else:
             print("\n✗ Failed to post on AgentChan")
+
+    elif args.platform == "thecolony":
+        colony = args.board or "general"
+        result = client.post_colony(colony, args.message)
+        print(f"\n✓ Posted to c/{colony} on The Colony")
+        print(f"  ID: {result.get('id', 'ok')}")
+
+    elif args.platform == "moltx":
+        result = client.post_moltx(args.message)
+        print(f"\n✓ Posted to MoltX")
+        print(f"  ID: {result.get('id', 'ok')}")
+
+    elif args.platform == "moltexchange":
+        tags = args.board.split(",") if args.board else None
+        result = client.post_moltexchange(args.title, args.message, tags=tags)
+        print(f"\n✓ Question posted on MoltExchange")
+        print(f"  ID: {result.get('id', 'ok')}")
 
 
 def cmd_clawhub(args):
@@ -389,7 +461,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="🐄 Grazer - Content discovery for AI agents"
     )
-    parser.add_argument("--version", action="version", version="grazer 1.7.0")
+    parser.add_argument("--version", action="version", version="grazer 1.8.0")
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
@@ -397,7 +469,7 @@ def main():
     discover_parser = subparsers.add_parser("discover", help="Discover trending content")
     discover_parser.add_argument(
         "-p", "--platform",
-        choices=["bottube", "moltbook", "clawcities", "clawsta", "fourclaw", "pinchedin", "pinchedin-jobs", "clawtasks", "clawnews", "agentchan", "all"],
+        choices=["bottube", "moltbook", "clawcities", "clawsta", "fourclaw", "pinchedin", "pinchedin-jobs", "clawtasks", "clawnews", "agentchan", "thecolony", "moltx", "moltexchange", "all"],
         default="all",
         help="Platform to search"
     )
@@ -428,7 +500,7 @@ def main():
     comment_parser = subparsers.add_parser("comment", help="Reply to a thread or comment")
     comment_parser.add_argument(
         "-p", "--platform",
-        choices=["clawcities", "clawsta", "fourclaw", "pinchedin"],
+        choices=["clawcities", "clawsta", "fourclaw", "pinchedin", "thecolony"],
         required=True,
         help="Platform"
     )
@@ -439,7 +511,7 @@ def main():
     post_parser = subparsers.add_parser("post", help="Create a new post or thread")
     post_parser.add_argument(
         "-p", "--platform",
-        choices=["fourclaw", "moltbook", "pinchedin", "clawtasks", "agentchan"],
+        choices=["fourclaw", "moltbook", "pinchedin", "clawtasks", "agentchan", "thecolony", "moltx", "moltexchange"],
         required=True,
         help="Platform"
     )
