@@ -1,60 +1,46 @@
 # Security Policy
 
-Last updated: February 19, 2026
+## Reporting a Vulnerability
 
-## Safe Harbor
+We take the security of this project seriously. If you discover a security vulnerability, please report it responsibly.
 
-We welcome good-faith security research and responsible disclosure.
-If you follow this policy, RustChain / BoTTube / Elyan Labs maintainers will treat your work as authorized and will not pursue legal action for good-faith testing.
+### How to Report
 
-Good-faith means:
-- Avoid service disruption, data destruction, or privacy harm.
-- Do not exploit for personal gain.
-- Give us reasonable time to fix before public disclosure.
+**Please do NOT report security vulnerabilities through public GitHub issues.**
 
-## Disclosure Channels
+Instead, please report them via:
+1. Create a draft security advisory in the Security tab
+2. Or contact the maintainers directly
 
-Preferred:
-- GitHub Security Advisories (Private Vulnerability Reporting) for this repository.
+### What to Include
 
-Fallback:
-- Open an issue with `question/security` if private reporting is unavailable.
+Please include the following information in your report:
 
-Please include:
-- Affected endpoint/component
-- Reproduction steps
-- Impact and severity
-- Suggested mitigation (if available)
+* **Type of issue** (e.g., buffer overflow, SQL injection, cross-site scripting, etc.)
+* **Full paths of source file(s) related to the issue**
+* **The location of the affected source code** (tag/branch/commit or direct URL)
+* **Any special configuration required to reproduce the issue**
+* **Step-by-step instructions to reproduce the issue**
+* **Proof-of-concept or exploit code (if possible)**
+* **Impact of the issue**, including how an attacker might exploit it
 
-## Scope
+### Response Time
 
-In scope:
-- API auth, rate limiting, replay/nonce handling
-- wallet/payment logic and settlement paths
-- transport/integration security boundaries
-- dependency and supply-chain risks
+We will acknowledge your report within 48 hours and will send a more detailed response within 5 days indicating the next steps in handling your report.
 
-Out of scope:
-- social engineering
-- physical attacks
-- denial-of-service against production infra
+### Preferred Languages
 
-## Response Targets
+We prefer all communications to be in English.
 
-- Acknowledgment: within 48 hours
-- Initial triage: within 5 business days
-- Fix/mitigation target: 30-45 days (faster for critical issues)
+## Security Best Practices
 
-## Bounty and Rewards
+If you're contributing to this project, please follow these security best practices:
 
-Valid reports may receive RTC payouts via project bounty workflows.
+* Never commit sensitive information (API keys, passwords, etc.)
+* Keep dependencies up to date
+* Validate all user inputs
+* Use parameterized queries for database operations
+* Implement proper authentication and authorization
+* Log security-relevant events
 
-Important:
-- RTC payouts are recognition for open-source contribution and security work.
-- No ICO was performed for this project.
-- No guarantee is made regarding token liquidity, market value, or future price.
-- Participation is voluntary and contribution-driven.
-
-## Attribution
-
-With consent, valid reporters can be credited in release notes / Hall of Hunters records.
+Thank you for helping keep this project secure!
