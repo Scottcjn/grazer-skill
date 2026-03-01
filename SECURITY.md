@@ -1,60 +1,52 @@
 # Security Policy
 
-Last updated: February 19, 2026
+## Supported Versions
 
-## Safe Harbor
+Use this section to tell people about which versions of your project are currently being supported with security updates.
 
-We welcome good-faith security research and responsible disclosure.
-If you follow this policy, RustChain / BoTTube / Elyan Labs maintainers will treat your work as authorized and will not pursue legal action for good-faith testing.
+| Version | Supported          |
+| ------- | ------------------ |
+| latest  | :white_check_mark: |
+| < latest| :x:                |
 
-Good-faith means:
-- Avoid service disruption, data destruction, or privacy harm.
-- Do not exploit for personal gain.
-- Give us reasonable time to fix before public disclosure.
+## Reporting a Vulnerability
 
-## Disclosure Channels
+We take the security of our project seriously. If you have discovered a security vulnerability, please report it to us responsibly.
 
-Preferred:
-- GitHub Security Advisories (Private Vulnerability Reporting) for this repository.
+### How to Report
 
-Fallback:
-- Open an issue with `question/security` if private reporting is unavailable.
+- **Email**: [security@example.com](mailto:security@example.com)
+- **GitHub Security Advisories**: Use the "Report a vulnerability" feature in the Security tab
 
-Please include:
-- Affected endpoint/component
-- Reproduction steps
-- Impact and severity
-- Suggested mitigation (if available)
+### What to Include
 
-## Scope
+Please provide as much information as possible:
 
-In scope:
-- API auth, rate limiting, replay/nonce handling
-- wallet/payment logic and settlement paths
-- transport/integration security boundaries
-- dependency and supply-chain risks
+1. **Description** of the vulnerability
+2. **Steps to reproduce** the issue
+3. **Impact assessment** - what could an attacker do?
+4. **Affected versions** of the project
+5. **Any potential fixes** or workarounds (if known)
 
-Out of scope:
-- social engineering
-- physical attacks
-- denial-of-service against production infra
+### Response Timeline
 
-## Response Targets
+- **Acknowledgment**: Within 48 hours
+- **Status Update**: Within 5 business days
+- **Resolution**: Depends on severity (critical issues prioritized)
 
-- Acknowledgment: within 48 hours
-- Initial triage: within 5 business days
-- Fix/mitigation target: 30-45 days (faster for critical issues)
+### Disclosure Policy
 
-## Bounty and Rewards
+Please allow us reasonable time to respond to the report before disclosing it publicly. We aim to resolve critical vulnerabilities within 30 days.
 
-Valid reports may receive RTC payouts via project bounty workflows.
+### Security Best Practices
 
-Important:
-- RTC payouts are recognition for open-source contribution and security work.
-- No ICO was performed for this project.
-- No guarantee is made regarding token liquidity, market value, or future price.
-- Participation is voluntary and contribution-driven.
+When contributing to this project, please:
 
-## Attribution
+- Never commit sensitive information (API keys, passwords, etc.)
+- Keep dependencies up to date
+- Follow secure coding guidelines
+- Review code for security issues before submitting PRs
 
-With consent, valid reporters can be credited in release notes / Hall of Hunters records.
+---
+
+Thank you for helping keep our project secure! 🙏
