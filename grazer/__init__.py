@@ -134,7 +134,14 @@ class GrazerClient:
             timeout=self.timeout,
         )
         resp.raise_for_status()
-        return resp.json().get("posts", [])
+        data = resp.json()
+        if isinstance(data, dict):
+            posts = data.get("posts", [])
+        elif isinstance(data, list):
+            posts = data
+        else:
+            posts = []
+        return posts[: max(0, int(limit))]
 
     def post_moltbook(
         self, content: str, title: str, submolt: str = "tech"
@@ -220,7 +227,14 @@ class GrazerClient:
             timeout=self.timeout,
         )
         resp.raise_for_status()
-        return resp.json().get("posts", [])
+        data = resp.json()
+        if isinstance(data, dict):
+            posts = data.get("posts", [])
+        elif isinstance(data, list):
+            posts = data
+        else:
+            posts = []
+        return posts[: max(0, int(limit))]
 
     def post_clawsta(self, content: str) -> Dict:
         """Post to Clawsta."""
@@ -864,7 +878,13 @@ class GrazerClient:
         )
         resp.raise_for_status()
         data = resp.json()
-        return data.get("posts", data) if isinstance(data, dict) else data
+        if isinstance(data, dict):
+            posts = data.get("posts", data.get("results", []))
+        elif isinstance(data, list):
+            posts = data
+        else:
+            posts = []
+        return posts[: max(0, int(limit))]
 
     def list_colonies(self) -> List[Dict]:
         """List all available colonies."""
@@ -930,9 +950,19 @@ class GrazerClient:
             resp.raise_for_status()
             data = resp.json()
             # MoltX wraps in {success: true, data: {posts: [...]}}
-            if isinstance(data, dict) and "data" in data:
-                return data["data"].get("posts", [])[:limit]
-            return data.get("posts", data) if isinstance(data, dict) else data
+            if isinstance(data, dict):
+                nested = data.get("data", {})
+                if isinstance(nested, dict):
+                    posts = nested.get("posts")
+                    if isinstance(posts, list):
+                        return posts[: max(0, int(limit))]
+                posts = data.get("posts", [])
+                if isinstance(posts, list):
+                    return posts[: max(0, int(limit))]
+                return []
+            if isinstance(data, list):
+                return data[: max(0, int(limit))]
+            return []
         except Exception:
             return []
 
@@ -948,7 +978,14 @@ class GrazerClient:
             )
             resp.raise_for_status()
             data = resp.json()
-            return data.get("agents", data) if isinstance(data, dict) else data
+            if isinstance(data, dict):
+                agents = data.get("agents", [])
+                if isinstance(agents, list):
+                    return agents[: max(0, int(limit))]
+                return []
+            if isinstance(data, list):
+                return data[: max(0, int(limit))]
+            return []
         except Exception:
             return []
 
@@ -984,7 +1021,14 @@ class GrazerClient:
             )
             resp.raise_for_status()
             data = resp.json()
-            return data.get("questions", data) if isinstance(data, dict) else data
+            if isinstance(data, dict):
+                questions = data.get("questions", [])
+                if isinstance(questions, list):
+                    return questions[: max(0, int(limit))]
+                return []
+            if isinstance(data, list):
+                return data[: max(0, int(limit))]
+            return []
         except Exception:
             return []
 
@@ -1000,7 +1044,14 @@ class GrazerClient:
             )
             resp.raise_for_status()
             data = resp.json()
-            return data.get("topics", data) if isinstance(data, dict) else data
+            if isinstance(data, dict):
+                topics = data.get("topics", [])
+                if isinstance(topics, list):
+                    return topics[: max(0, int(limit))]
+                return []
+            if isinstance(data, list):
+                return data[: max(0, int(limit))]
+            return []
         except Exception:
             return []
 
