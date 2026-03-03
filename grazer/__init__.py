@@ -95,8 +95,10 @@ class GrazerClient:
         )
         resp.raise_for_status()
         videos = resp.json().get("videos", [])
+        videos = videos[: max(0, int(limit))]
         for v in videos:
-            v["stream_url"] = f"https://bottube.ai/api/videos/{v['id']}/stream"
+            if "id" in v:
+                v["stream_url"] = f"https://bottube.ai/api/videos/{v['id']}/stream"
         return videos
 
     def search_bottube(self, query: str, limit: int = 10) -> List[Dict]:
@@ -159,7 +161,7 @@ class GrazerClient:
 
     def discover_clawcities(self, limit: int = 20) -> List[Dict]:
         """Discover ClawCities sites (known Elyan Labs sites)."""
-        return [
+        sites = [
             {
                 "name": "sophia-elya",
                 "display_name": "Sophia Elya",
@@ -182,6 +184,7 @@ class GrazerClient:
                 "guestbook_count": 0,
             },
         ]
+        return sites[: max(0, int(limit))]
 
     def comment_clawcities(self, site_name: str, message: str) -> Dict:
         """Leave a guestbook comment on a ClawCities site."""
@@ -1121,7 +1124,7 @@ class GrazerClient:
     # Cross-Platform
     # ───────────────────────────────────────────────────────────
 
-    def discover_all(self) -> Dict[str, List[Dict]]:
+    def discover_all(self, limit: int = 10) -> Dict[str, List[Dict]]:
         """Discover content from all platforms.
 
         Returns a dict keyed by platform name. Also includes an ``_errors``
@@ -1147,19 +1150,19 @@ class GrazerClient:
         }
 
         calls = [
-            ("bottube",       lambda: self.discover_bottube(limit=10)),
-            ("moltbook",      lambda: self.discover_moltbook(limit=10)),
-            ("clawcities",    lambda: self.discover_clawcities(10)),
-            ("clawsta",       lambda: self.discover_clawsta(10)),
-            ("fourclaw",      lambda: self.discover_fourclaw(board="b", limit=10)),
-            ("pinchedin",     lambda: self.discover_pinchedin(limit=10)),
-            ("clawtasks",     lambda: self.discover_clawtasks(limit=10)),
-            ("clawnews",      lambda: self.discover_clawnews(limit=10)),
-            ("directory",     lambda: self.discover_directory(limit=20)),
-            ("agentchan",     lambda: self.discover_agentchan(limit=10)),
-            ("thecolony",     lambda: self.discover_colony(limit=10)),
-            ("moltx",         lambda: self.discover_moltx(limit=10)),
-            ("moltexchange",  lambda: self.discover_moltexchange(limit=10)),
+            ("bottube",       lambda: self.discover_bottube(limit=limit)),
+            ("moltbook",      lambda: self.discover_moltbook(limit=limit)),
+            ("clawcities",    lambda: self.discover_clawcities(limit)),
+            ("clawsta",       lambda: self.discover_clawsta(limit)),
+            ("fourclaw",      lambda: self.discover_fourclaw(board="b", limit=limit)),
+            ("pinchedin",     lambda: self.discover_pinchedin(limit=limit)),
+            ("clawtasks",     lambda: self.discover_clawtasks(limit=limit)),
+            ("clawnews",      lambda: self.discover_clawnews(limit=limit)),
+            ("directory",     lambda: self.discover_directory(limit=limit)),
+            ("agentchan",     lambda: self.discover_agentchan(limit=limit)),
+            ("thecolony",     lambda: self.discover_colony(limit=limit)),
+            ("moltx",         lambda: self.discover_moltx(limit=limit)),
+            ("moltexchange",  lambda: self.discover_moltexchange(limit=limit)),
         ]
 
         for name, fn in calls:
