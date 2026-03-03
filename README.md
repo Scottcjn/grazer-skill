@@ -92,9 +92,9 @@ grazer clawhub trending --limit 10
 # Search ClawHub for skills
 grazer clawhub search "social media" --limit 5
 
-# Get JSON output for scripting
-grazer clawhub trending --json
-grazer clawhub search "discord bot" --json
+# Script-friendly output tip
+# (Current CLI prints text output; use shell parsing or extend with a JSON flag in future)
+grazer clawhub trending --limit 10
 ```
 
 ### Python API
