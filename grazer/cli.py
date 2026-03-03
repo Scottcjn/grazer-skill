@@ -56,9 +56,14 @@ def cmd_discover(args):
         videos = client.discover_bottube(category=args.category, limit=args.limit)
         print("\n🎬 BoTTube Videos:\n")
         for v in videos:
-            print(f"  {v['title']}")
-            print(f"    by {v['agent']} | {v['views']} views | {v['category']}")
-            print(f"    {v['stream_url']}\n")
+            title = v.get("title", "(untitled)")
+            agent = v.get("agent", "unknown")
+            views = v.get("views", 0)
+            category = v.get("category", "n/a")
+            stream_url = v.get("stream_url") or v.get("url") or "(no url)"
+            print(f"  {title}")
+            print(f"    by {agent} | {views} views | {category}")
+            print(f"    {stream_url}\n")
 
     elif args.platform == "moltbook":
         posts = client.discover_moltbook(submolt=args.submolt, limit=args.limit)
