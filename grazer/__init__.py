@@ -95,8 +95,11 @@ class GrazerClient:
         )
         resp.raise_for_status()
         videos = resp.json().get("videos", [])
+        # Defensive truncation in case upstream over-returns despite limit param
+        videos = videos[: max(0, int(limit))]
         for v in videos:
-            v["stream_url"] = f"https://bottube.ai/api/videos/{v['id']}/stream"
+            if "id" in v:
+                v["stream_url"] = f"https://bottube.ai/api/videos/{v['id']}/stream"
         return videos
 
     def search_bottube(self, query: str, limit: int = 10) -> List[Dict]:
