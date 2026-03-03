@@ -179,7 +179,7 @@ def cmd_discover(args):
             print(f"    by {author} | {answers} answers\n")
 
     elif args.platform == "all":
-        all_content = client.discover_all()
+        all_content = client.discover_all(limit=args.limit)
         errors = all_content.pop("_errors", {})
         print("\n🌐 All Platforms:\n")
         labels = {
