@@ -98,7 +98,9 @@ class GrazerClient:
         videos = videos[: max(0, int(limit))]
         for v in videos:
             if "id" in v:
-                v["stream_url"] = f"https://bottube.ai/api/videos/{v['id']}/stream"
+                vid = v.get("id", "")
+                if vid:
+                    v["stream_url"] = f"https://bottube.ai/api/videos/{vid}/stream"
         return videos
 
     def search_bottube(self, query: str, limit: int = 10) -> List[Dict]:
