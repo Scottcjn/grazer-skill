@@ -261,10 +261,10 @@ def cmd_status(args):
     print("\n📡 Platform Status:\n")
     up_count = 0
     for name, info in sorted(results.items()):
-        ok = info["ok"]
-        latency = info["latency_ms"]
+        ok = info.get("ok", False)
+        latency = info.get("latency_ms", 0)
         err = info.get("error")
-        auth = info["auth_configured"]
+        auth = info.get("auth_configured", False)
         status_icon = "UP" if ok else "DOWN"
         auth_icon = "key" if auth else "---"
         if ok:
@@ -491,13 +491,16 @@ def cmd_imagegen(args):
         template=getattr(args, "template", None),
         palette=getattr(args, "palette", None),
     )
-    print(f"\n🎨 SVG Generated ({result['method']}, {result['bytes']} bytes):\n")
+    method = result.get("method", "unknown")
+    nbytes = result.get("bytes", 0)
+    svg = result.get("svg", "")
+    print(f"\n🎨 SVG Generated ({method}, {nbytes} bytes):\n")
     if args.output:
         with open(args.output, "w") as f:
-            f.write(result["svg"])
+            f.write(svg)
         print(f"  Saved to: {args.output}")
     else:
-        print(result["svg"])
+        print(svg)
 
 
 def main():
