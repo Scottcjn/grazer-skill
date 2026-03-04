@@ -47,6 +47,22 @@ def _make_client(config: dict, **extra) -> GrazerClient:
     )
 
 
+def _to_text(value, default="") -> str:
+    """Normalize mixed API values to printable text."""
+    if value is None:
+        return default
+    if isinstance(value, str):
+        return value
+    return str(value)
+
+
+def _truncate(value, max_len: int, default="") -> str:
+    text = _to_text(value, default=default)
+    if len(text) > max_len:
+        return text[:max_len] + "..."
+    return text
+
+
 def cmd_discover(args):
     """Discover trending content."""
     config = load_config()
@@ -69,24 +85,42 @@ def cmd_discover(args):
         posts = client.discover_moltbook(submolt=args.submolt, limit=args.limit)
         print("\n📚 Moltbook Posts:\n")
         for p in posts:
-            print(f"  {p['title']}")
-            print(f"    m/{p['submolt']} | {p.get('upvotes', 0)} upvotes")
-            print(f"    https://moltbook.com{p['url']}\n")
+            title = _to_text(p.get("title"), default="(untitled)")
+            submolt = _to_text(p.get("submolt"), default="unknown")
+            upvotes = p.get("upvotes", 0)
+            raw_url = _to_text(p.get("url"), default="")
+            if raw_url.startswith("http://") or raw_url.startswith("https://"):
+                post_url = raw_url
+            elif raw_url:
+                post_url = f"https://moltbook.com{raw_url}"
+            else:
+                post_url = "(no url)"
+            print(f"  {title}")
+            print(f"    m/{submolt} | {upvotes} upvotes")
+            print(f"    {post_url}\n")
 
     elif args.platform == "clawcities":
         sites = client.discover_clawcities(limit=args.limit)
         print("\n🏙️ ClawCities Sites:\n")
         for s in sites:
-            print(f"  {s['display_name']}")
-            print(f"    {s['url']}\n")
+            display_name = _to_text(s.get("display_name"), default=_to_text(s.get("name"), default="(unnamed site)"))
+            site_url = _to_text(s.get("url"), default="(no url)")
+            print(f"  {display_name}")
+            print(f"    {site_url}\n")
 
     elif args.platform == "clawsta":
         posts = client.discover_clawsta(limit=args.limit)
         print("\n🦞 Clawsta Posts:\n")
         for p in posts:
-            content = p["content"][:60] + "..." if len(p["content"]) > 60 else p["content"]
+            content = _truncate(p.get("content"), 60, default="(no content)")
+            author_data = p.get("author")
+            if isinstance(author_data, dict):
+                author = _to_text(author_data.get("display_name"), default=_to_text(author_data.get("username"), default="unknown"))
+            else:
+                author = _to_text(author_data, default="unknown")
+            likes = p.get("likes", p.get("like_count", 0))
             print(f"  {content}")
-            print(f"    by {p['author']} | {p.get('likes', 0)} likes\n")
+            print(f"    by {author} | {likes} likes\n")
 
     elif args.platform == "fourclaw":
         board = args.board or "b"
@@ -96,14 +130,15 @@ def cmd_discover(args):
             title = t.get("title", "(untitled)")
             replies = t.get("replyCount", 0)
             agent = t.get("agentName", "anon")
+            thread_id = _to_text(t.get("id"), default="?")
             print(f"  {title}")
-            print(f"    by {agent} | {replies} replies | id:{t['id'][:8]}\n")
+            print(f"    by {agent} | {replies} replies | id:{thread_id[:8]}\n")
 
     elif args.platform == "pinchedin":
         posts = client.discover_pinchedin(limit=args.limit)
         print("\n💼 PinchedIn Feed:\n")
         for p in posts:
-            content = p["content"][:80] + "..." if len(p["content"]) > 80 else p["content"]
+            content = _truncate(p.get("content"), 80, default="(no content)")
             author = p.get("author", {}).get("name", "?")
             print(f"  {content}")
             print(f"    by {author} | {p.get('likesCount', 0)} likes | {p.get('commentsCount', 0)} comments\n")
@@ -120,9 +155,11 @@ def cmd_discover(args):
         bounties = client.discover_clawtasks(limit=args.limit)
         print("\n🎯 ClawTasks Bounties:\n")
         for b in bounties:
-            print(f"  {b['title']}")
+            title = _to_text(b.get("title"), default="(untitled bounty)")
             tags = ", ".join(b.get("tags") or [])
-            print(f"    status: {b['status']} | tags: {tags} | deadline: {b.get('deadline_hours', '?')}h\n")
+            status = _to_text(b.get("status"), default="unknown")
+            print(f"  {title}")
+            print(f"    status: {status} | tags: {tags} | deadline: {b.get('deadline_hours', '?')}h\n")
 
     elif args.platform == "clawnews":
         stories = client.discover_clawnews(limit=args.limit)
@@ -149,25 +186,22 @@ def cmd_discover(args):
         label = f"c/{colony}" if colony else "all"
         print(f"\n🏰 The Colony {label}:\n")
         for p in posts:
-            title = p.get("title", "")
-            body = p.get("body", p.get("safe_text", ""))[:60]
-            if len(p.get("body", "")) > 60:
-                body += "..."
+            title = _to_text(p.get("title"), default="(untitled)")
+            body = _truncate(p.get("body", p.get("safe_text", "")), 60, default="")
             author_data = p.get("author", {})
             author = author_data.get("display_name", author_data.get("username", "?")) if isinstance(author_data, dict) else str(author_data)
             ptype = p.get("post_type", p.get("type", "discussion"))
             comments = p.get("comment_count", 0)
+            post_id = _to_text(p.get("id"), default="?")
             print(f"  {title}")
-            print(f"    [{ptype}] by {author} | {comments} comments | id:{p.get('id', '?')[:8]}\n")
+            print(f"    [{ptype}] by {author} | {comments} comments | id:{post_id[:8]}\n")
 
     elif args.platform == "moltx":
         posts = client.discover_moltx(limit=args.limit)
         print("\n📱 MoltX Feed:\n")
         for p in posts:
-            content = p.get("content", "")[:80]
-            if len(p.get("content", "")) > 80:
-                content += "..."
-            author = p.get("author_display_name", p.get("author_name", "?"))
+            content = _truncate(p.get("content"), 80, default="(no content)")
+            author = _to_text(p.get("author_display_name"), default=_to_text(p.get("author_name"), default="?"))
             likes = p.get("like_count", 0)
             replies = p.get("reply_count", 0)
             print(f"  {content}")
@@ -177,9 +211,13 @@ def cmd_discover(args):
         questions = client.discover_moltexchange(limit=args.limit)
         print("\n🔄 MoltExchange Questions:\n")
         for q in questions:
-            title = q.get("title", q.get("content", "?")[:60])
+            title = _to_text(q.get("title"), default=_truncate(q.get("content"), 60, default="?"))
             answers = q.get("answer_count", q.get("answers", 0))
-            author = q.get("author", q.get("agent_name", "?"))
+            author_data = q.get("author", q.get("agent_name", "?"))
+            if isinstance(author_data, dict):
+                author = _to_text(author_data.get("display_name"), default=_to_text(author_data.get("username"), default="?"))
+            else:
+                author = _to_text(author_data, default="?")
             print(f"  {title}")
             print(f"    by {author} | {answers} answers\n")
 
