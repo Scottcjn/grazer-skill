@@ -70,6 +70,7 @@ def cmd_discover(args):
 
     if args.platform == "bottube":
         videos = client.discover_bottube(category=args.category, limit=args.limit)
+        videos = videos[:args.limit]
         print("\n🎬 BoTTube Videos:\n")
         for v in videos:
             title = v.get("title", "(untitled)")
@@ -83,6 +84,7 @@ def cmd_discover(args):
 
     elif args.platform == "moltbook":
         posts = client.discover_moltbook(submolt=args.submolt, limit=args.limit)
+        posts = posts[:args.limit]
         print("\n📚 Moltbook Posts:\n")
         for p in posts:
             title = _to_text(p.get("title"), default="(untitled)")
@@ -101,6 +103,7 @@ def cmd_discover(args):
 
     elif args.platform == "clawcities":
         sites = client.discover_clawcities(limit=args.limit)
+        sites = sites[:args.limit]
         print("\n🏙️ ClawCities Sites:\n")
         for s in sites:
             display_name = _to_text(s.get("display_name"), default=_to_text(s.get("name"), default="(unnamed site)"))
@@ -110,6 +113,7 @@ def cmd_discover(args):
 
     elif args.platform == "clawsta":
         posts = client.discover_clawsta(limit=args.limit)
+        posts = posts[:args.limit]
         print("\n🦞 Clawsta Posts:\n")
         for p in posts:
             content = _truncate(p.get("content"), 60, default="(no content)")
@@ -125,6 +129,7 @@ def cmd_discover(args):
     elif args.platform == "fourclaw":
         board = args.board or "b"
         threads = client.discover_fourclaw(board=board, limit=args.limit, include_content=True)
+        threads = threads[:args.limit]
         print(f"\n🦞 4claw /{board}/:\n")
         for t in threads:
             title = t.get("title", "(untitled)")
@@ -136,6 +141,7 @@ def cmd_discover(args):
 
     elif args.platform == "pinchedin":
         posts = client.discover_pinchedin(limit=args.limit)
+        posts = posts[:args.limit]
         print("\n💼 PinchedIn Feed:\n")
         for p in posts:
             content = _truncate(p.get("content"), 80, default="(no content)")
@@ -145,6 +151,7 @@ def cmd_discover(args):
 
     elif args.platform == "pinchedin-jobs":
         jobs = client.discover_pinchedin_jobs(limit=args.limit)
+        jobs = jobs[:args.limit]
         print("\n💼 PinchedIn Jobs:\n")
         for j in jobs:
             print(f"  {j.get('title', '?')}")
@@ -153,6 +160,7 @@ def cmd_discover(args):
 
     elif args.platform == "clawtasks":
         bounties = client.discover_clawtasks(limit=args.limit)
+        bounties = bounties[:args.limit]
         print("\n🎯 ClawTasks Bounties:\n")
         for b in bounties:
             title = _to_text(b.get("title"), default="(untitled bounty)")
@@ -163,6 +171,7 @@ def cmd_discover(args):
 
     elif args.platform == "clawnews":
         stories = client.discover_clawnews(limit=args.limit)
+        stories = stories[:args.limit]
         print("\n📰 ClawNews Stories:\n")
         for s in stories:
             title = s.get("headline", s.get("title", "?"))
@@ -172,6 +181,7 @@ def cmd_discover(args):
     elif args.platform == "agentchan":
         board = args.board or "ai"
         threads = client.discover_agentchan(board=board, limit=args.limit)
+        threads = threads[:args.limit]
         print(f"\n🤖 AgentChan /{board}/:\n")
         for t in threads:
             subject = t.get("subject", t.get("title", "(untitled)"))
@@ -183,6 +193,7 @@ def cmd_discover(args):
     elif args.platform == "thecolony":
         colony = args.board or None
         posts = client.discover_colony(colony=colony, limit=args.limit)
+        posts = posts[:args.limit]
         label = f"c/{colony}" if colony else "all"
         print(f"\n🏰 The Colony {label}:\n")
         for p in posts:
@@ -198,6 +209,7 @@ def cmd_discover(args):
 
     elif args.platform == "moltx":
         posts = client.discover_moltx(limit=args.limit)
+        posts = posts[:args.limit]
         print("\n📱 MoltX Feed:\n")
         for p in posts:
             content = _truncate(p.get("content"), 80, default="(no content)")
@@ -209,6 +221,7 @@ def cmd_discover(args):
 
     elif args.platform == "moltexchange":
         questions = client.discover_moltexchange(limit=args.limit)
+        questions = questions[:args.limit]
         print("\n🔄 MoltExchange Questions:\n")
         for q in questions:
             title = _to_text(q.get("title"), default=_truncate(q.get("content"), 60, default="?"))

@@ -92,9 +92,8 @@ grazer clawhub trending --limit 10
 # Search ClawHub for skills
 grazer clawhub search "social media" --limit 5
 
-# Script-friendly output tip
-# (Current CLI prints text output; use shell parsing or extend with a JSON flag in future)
-grazer clawhub trending --limit 10
+# Get detailed skill info
+grazer clawhub info grazer
 ```
 
 ### Python API
