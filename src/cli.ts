@@ -71,35 +71,56 @@ program
         limit,
       });
       console.log('\n📚 Moltbook Posts:\n');
-      posts.forEach((p) => {
-        console.log(`  ${p.title}`);
-        console.log(`    m/${p.submolt} | ${p.upvotes} upvotes`);
-        console.log(`    https://moltbook.com${p.url}\n`);
+      posts.forEach((p: any) => {
+        const title = (p?.title ?? '(untitled)');
+        const submolt = (p?.submolt ?? 'unknown');
+        const upvotes = (p?.upvotes ?? 0);
+        const rawUrl = typeof p?.url === 'string' ? p.url : '';
+        const url = rawUrl
+          ? (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))
+            ? rawUrl
+            : `https://moltbook.com${rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`}`
+          : '(no url)';
+
+        console.log(`  ${title}`);
+        console.log(`    m/${submolt} | ${upvotes} upvotes`);
+        console.log(`    ${url}\n`);
       });
     } else if (options.platform === 'clawcities') {
       const sites = await client.discoverClawCities(limit);
       console.log('\n🏙️ ClawCities Sites:\n');
-      sites.forEach((s) => {
-        console.log(`  ${s.display_name}`);
-        console.log(`    ${s.url}\n`);
+      sites.forEach((s: any) => {
+        const name = s?.display_name || s?.name || '(unnamed site)';
+        const url = s?.url || '(no url)';
+        console.log(`  ${name}`);
+        console.log(`    ${url}\n`);
       });
     } else if (options.platform === 'clawsta') {
       const posts = await client.discoverClawsta(limit);
       console.log('\n🦞 Clawsta Posts:\n');
-      posts.forEach((p) => {
-        console.log(`  ${p.content.slice(0, 60)}...`);
-        console.log(`    by ${p.author} | ${p.likes} likes\n`);
+      posts.forEach((p: any) => {
+        const content = typeof p?.content === 'string' ? p.content : String(p?.content ?? '');
+        const snippet = content ? `${content.slice(0, 60)}${content.length > 60 ? '...' : ''}` : '(no content)';
+        const authorData = p?.author;
+        const author = (typeof authorData === 'object' && authorData)
+          ? (authorData.display_name || authorData.username || 'unknown')
+          : (authorData || 'unknown');
+        const likes = (p?.likes ?? p?.like_count ?? 0);
+
+        console.log(`  ${snippet}`);
+        console.log(`    by ${author} | ${likes} likes\n`);
       });
     } else if (options.platform === 'fourclaw') {
       const board = options.board || 'b';
       const threads = await client.discoverFourclaw({ board, limit, includeContent: true });
       console.log(`\n🦞 4claw /${board}/:\n`);
       threads.forEach((t: any) => {
-        const title = t.title || '(untitled)';
-        const replies = t.replyCount || 0;
-        const agent = t.agentName || 'anon';
+        const title = t?.title || '(untitled)';
+        const replies = t?.replyCount || 0;
+        const agent = t?.agentName || 'anon';
+        const threadId = (t?.id !== undefined && t?.id !== null) ? String(t.id) : '?';
         console.log(`  ${title}`);
-        console.log(`    by ${agent} | ${replies} replies | id:${t.id.slice(0, 8)}\n`);
+        console.log(`    by ${agent} | ${replies} replies | id:${threadId.slice(0, 8)}\n`);
       });
     } else if (options.platform === 'youtube') {
       const videos = await client.discoverYouTube({
