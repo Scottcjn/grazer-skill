@@ -63,6 +63,36 @@ def _truncate(value, max_len: int, default="") -> str:
     return text
 
 
+def _redact_payload(value):
+    """Recursively redact token/secret-looking keys in payload previews."""
+    if isinstance(value, dict):
+        out = {}
+        for k, v in value.items():
+            key_lower = str(k).lower()
+            if any(marker in key_lower for marker in ("token", "secret", "password", "authorization", "api_key")):
+                out[k] = "***REDACTED***"
+            else:
+                out[k] = _redact_payload(v)
+        return out
+    if isinstance(value, list):
+        return [_redact_payload(v) for v in value]
+    return value
+
+
+def _print_dry_run_preview(provider: str, payload: dict, text_value: Optional[str] = None, media_meta: Optional[dict] = None):
+    """Print provider-normalized payload preview for dry-run mode."""
+    text_len = len(_to_text(text_value, default="")) if text_value is not None else 0
+    safe_payload = _redact_payload(payload)
+
+    print("\n🔍 Dry-run preview (no publish):")
+    print(f"  provider: {provider}")
+    print(f"  text_length: {text_len}")
+    if media_meta:
+        print(f"  media: {json.dumps(media_meta, ensure_ascii=False)}")
+    print("  payload:")
+    print(json.dumps(safe_payload, indent=2, ensure_ascii=False))
+
+
 def cmd_discover(args):
     """Discover trending content."""
     config = load_config()
@@ -316,17 +346,29 @@ def cmd_comment(args):
     )
 
     if args.platform == "clawcities":
+        payload = {"site_name": args.target, "body": args.message}
+        if getattr(args, "dry_run", False):
+            _print_dry_run_preview("clawcities", payload, text_value=args.message)
+            return
         result = client.comment_clawcities(args.target, args.message)
         print(f"\n✓ Comment posted to {args.target}")
         print(f"  ID: {result.get('comment', {}).get('id')}")
 
     elif args.platform == "clawsta":
+        payload = {"content": args.message, "imageUrl": "https://bottube.ai/static/og-banner.png"}
+        if getattr(args, "dry_run", False):
+            _print_dry_run_preview("clawsta", payload, text_value=args.message, media_meta={"kind": "image", "source": "default_og_banner"})
+            return
         result = client.post_clawsta(args.message)
         print(f"\n✓ Posted to Clawsta")
         print(f"  ID: {result.get('id')}")
 
     elif args.platform == "pinchedin":
         if args.target:
+            payload = {"post_id": args.target, "content": args.message}
+            if getattr(args, "dry_run", False):
+                _print_dry_run_preview("pinchedin", payload, text_value=args.message)
+                return
             result = client.comment_pinchedin(args.target, args.message)
             print(f"\n✓ Comment posted on PinchedIn post {args.target[:8]}...")
             print(f"  ID: {result.get('id', 'ok')}")
@@ -336,6 +378,10 @@ def cmd_comment(args):
 
     elif args.platform == "fourclaw":
         if args.target:
+            payload = {"thread_id": args.target, "content": args.message}
+            if getattr(args, "dry_run", False):
+                _print_dry_run_preview("fourclaw", payload, text_value=args.message)
+                return
             result = client.reply_fourclaw(args.target, args.message)
             print(f"\n✓ Reply posted to thread {args.target[:8]}...")
             print(f"  ID: {result.get('reply', {}).get('id', 'ok')}")
@@ -345,6 +391,10 @@ def cmd_comment(args):
 
     elif args.platform == "thecolony":
         if args.target:
+            payload = {"post_id": args.target, "content": args.message}
+            if getattr(args, "dry_run", False):
+                _print_dry_run_preview("thecolony", payload, text_value=args.message)
+                return
             result = client.reply_colony(args.target, args.message)
             print(f"\n✓ Reply posted to Colony post {args.target[:8]}...")
             print(f"  ID: {result.get('id', 'ok')}")
@@ -382,6 +432,18 @@ def cmd_post(args):
         image_prompt = getattr(args, "image", None)
         template = getattr(args, "template", None)
         palette = getattr(args, "palette", None)
+        payload = {
+            "board": args.board,
+            "title": args.title,
+            "content": args.message,
+            "image_prompt": image_prompt,
+            "template": template,
+            "palette": palette,
+        }
+        media_meta = {"kind": "image", "generated_from_prompt": bool(image_prompt)} if image_prompt else None
+        if getattr(args, "dry_run", False):
+            _print_dry_run_preview("fourclaw", payload, text_value=args.message, media_meta=media_meta)
+            return
         result = client.post_fourclaw(
             args.board, args.title, args.message,
             image_prompt=image_prompt, template=template, palette=palette,
@@ -394,23 +456,39 @@ def cmd_post(args):
             print(f"  Image: generated from '{image_prompt}'")
 
     elif args.platform == "moltbook":
+        payload = {"title": args.title, "content": args.message, "submolt_name": args.board or "tech"}
+        if getattr(args, "dry_run", False):
+            _print_dry_run_preview("moltbook", payload, text_value=args.message)
+            return
         result = client.post_moltbook(args.message, args.title, submolt=args.board or "tech")
         print(f"\n✓ Posted to m/{args.board or 'tech'}")
         print(f"  ID: {result.get('id', 'ok')}")
 
     elif args.platform == "pinchedin":
+        payload = {"content": args.message}
+        if getattr(args, "dry_run", False):
+            _print_dry_run_preview("pinchedin", payload, text_value=args.message)
+            return
         result = client.post_pinchedin(args.message)
         print(f"\n✓ Posted to PinchedIn")
         print(f"  ID: {result.get('id', 'ok')}")
 
     elif args.platform == "clawtasks":
         tags = args.board.split(",") if args.board else None
+        payload = {"title": args.title, "description": args.message, "tags": tags}
+        if getattr(args, "dry_run", False):
+            _print_dry_run_preview("clawtasks", payload, text_value=args.message)
+            return
         result = client.post_clawtask(args.title, args.message, tags=tags)
         print(f"\n✓ Bounty posted on ClawTasks")
         print(f"  ID: {result.get('id', 'ok')}")
 
     elif args.platform == "agentchan":
         board = args.board or "ai"
+        payload = {"board": board, "content": args.message}
+        if getattr(args, "dry_run", False):
+            _print_dry_run_preview("agentchan", payload, text_value=args.message)
+            return
         result = client.post_agentchan(board=board, content=args.message)
         if result:
             print(f"\n✓ Thread posted on AgentChan /{board}/")
@@ -420,17 +498,29 @@ def cmd_post(args):
 
     elif args.platform == "thecolony":
         colony = args.board or "general"
+        payload = {"colony": colony, "body": args.message}
+        if getattr(args, "dry_run", False):
+            _print_dry_run_preview("thecolony", payload, text_value=args.message)
+            return
         result = client.post_colony(colony, args.message)
         print(f"\n✓ Posted to c/{colony} on The Colony")
         print(f"  ID: {result.get('id', 'ok')}")
 
     elif args.platform == "moltx":
+        payload = {"content": args.message}
+        if getattr(args, "dry_run", False):
+            _print_dry_run_preview("moltx", payload, text_value=args.message)
+            return
         result = client.post_moltx(args.message)
         print(f"\n✓ Posted to MoltX")
         print(f"  ID: {result.get('id', 'ok')}")
 
     elif args.platform == "moltexchange":
         tags = args.board.split(",") if args.board else None
+        payload = {"title": args.title, "content": args.message, "tags": tags}
+        if getattr(args, "dry_run", False):
+            _print_dry_run_preview("moltexchange", payload, text_value=args.message)
+            return
         result = client.post_moltexchange(args.title, args.message, tags=tags)
         print(f"\n✓ Question posted on MoltExchange")
         print(f"  ID: {result.get('id', 'ok')}")
@@ -562,6 +652,7 @@ def main():
     )
     comment_parser.add_argument("-t", "--target", help="Target (site name, post/thread ID)")
     comment_parser.add_argument("-m", "--message", required=True, help="Comment message")
+    comment_parser.add_argument("--dry-run", action="store_true", help="Preview normalized payload without publishing")
 
     # post command
     post_parser = subparsers.add_parser("post", help="Create a new post or thread")
@@ -577,6 +668,7 @@ def main():
     post_parser.add_argument("-i", "--image", help="Generate SVG image from this prompt")
     post_parser.add_argument("--template", help="SVG template: circuit, wave, grid, badge, terminal")
     post_parser.add_argument("--palette", help="Color palette: tech, crypto, retro, nature, dark, fire, ocean")
+    post_parser.add_argument("--dry-run", action="store_true", help="Preview normalized payload without publishing")
 
     # clawhub command
     clawhub_parser = subparsers.add_parser("clawhub", help="ClawHub skill registry")
