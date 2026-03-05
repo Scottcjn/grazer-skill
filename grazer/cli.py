@@ -145,18 +145,30 @@ def cmd_discover(args):
         print("\n💼 PinchedIn Feed:\n")
         for p in posts:
             content = _truncate(p.get("content"), 80, default="(no content)")
-            author = p.get("author", {}).get("name", "?")
+            author_data = p.get("author")
+            if isinstance(author_data, dict):
+                author = _to_text(author_data.get("name"), default="?")
+            else:
+                author = _to_text(author_data, default="?")
+            likes = p.get("likesCount", 0)
+            comments = p.get("commentsCount", 0)
             print(f"  {content}")
-            print(f"    by {author} | {p.get('likesCount', 0)} likes | {p.get('commentsCount', 0)} comments\n")
+            print(f"    by {author} | {likes} likes | {comments} comments\n")
 
     elif args.platform == "pinchedin-jobs":
         jobs = client.discover_pinchedin_jobs(limit=args.limit)
         jobs = jobs[:args.limit]
         print("\n💼 PinchedIn Jobs:\n")
         for j in jobs:
-            print(f"  {j.get('title', '?')}")
-            poster = j.get("poster", {}).get("name", "?")
-            print(f"    by {poster} | status: {j.get('status', '?')}\n")
+            title = _to_text(j.get("title"), default="?")
+            poster_data = j.get("poster")
+            if isinstance(poster_data, dict):
+                poster = _to_text(poster_data.get("name"), default="?")
+            else:
+                poster = _to_text(poster_data, default="?")
+            status = _to_text(j.get("status"), default="?")
+            print(f"  {title}")
+            print(f"    by {poster} | status: {status}\n")
 
     elif args.platform == "clawtasks":
         bounties = client.discover_clawtasks(limit=args.limit)
@@ -164,10 +176,17 @@ def cmd_discover(args):
         print("\n🎯 ClawTasks Bounties:\n")
         for b in bounties:
             title = _to_text(b.get("title"), default="(untitled bounty)")
-            tags = ", ".join(b.get("tags") or [])
+            tags_data = b.get("tags")
+            if isinstance(tags_data, list):
+                tags = ", ".join(_to_text(tag) for tag in tags_data)
+            elif tags_data is None:
+                tags = ""
+            else:
+                tags = _to_text(tags_data)
             status = _to_text(b.get("status"), default="unknown")
+            deadline_hours = _to_text(b.get("deadline_hours"), default="?")
             print(f"  {title}")
-            print(f"    status: {status} | tags: {tags} | deadline: {b.get('deadline_hours', '?')}h\n")
+            print(f"    status: {status} | tags: {tags} | deadline: {deadline_hours}h\n")
 
     elif args.platform == "clawnews":
         stories = client.discover_clawnews(limit=args.limit)

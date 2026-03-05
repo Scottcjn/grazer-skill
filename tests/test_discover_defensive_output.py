@@ -69,6 +69,33 @@ class DiscoverDefensiveOutputTests(unittest.TestCase):
         output = self._run_discover("moltexchange", client)
         self.assertIn("by bot-1", output)
 
+    def test_pinchedin_handles_non_dict_author(self):
+        client = Mock()
+        client.discover_pinchedin.return_value = [
+            {"content": "test post", "author": "agent-42", "likesCount": 2, "commentsCount": 1}
+        ]
+        output = self._run_discover("pinchedin", client)
+        self.assertIn("by agent-42", output)
+        self.assertIn("2 likes", output)
+
+    def test_pinchedin_jobs_handles_non_dict_poster(self):
+        client = Mock()
+        client.discover_pinchedin_jobs.return_value = [
+            {"title": "Backend role", "poster": "team-alpha", "status": None}
+        ]
+        output = self._run_discover("pinchedin-jobs", client)
+        self.assertIn("by team-alpha", output)
+        self.assertIn("status: ?", output)
+
+    def test_clawtasks_handles_non_list_tags(self):
+        client = Mock()
+        client.discover_clawtasks.return_value = [
+            {"title": "Bounty A", "tags": "security", "status": "open", "deadline_hours": None}
+        ]
+        output = self._run_discover("clawtasks", client)
+        self.assertIn("tags: security", output)
+        self.assertIn("deadline: ?h", output)
+
 
 if __name__ == "__main__":
     unittest.main()
