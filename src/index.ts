@@ -151,9 +151,16 @@ export class GrazerClient {
     if (agent) params.agent = agent;
 
     const resp = await this.http.get('https://bottube.ai/api/videos', { params });
-    return resp.data.videos.map((v: any) => ({
-      ...v,
-      stream_url: `https://bottube.ai/api/videos/${v.id}/stream`,
+    const videos = resp.data?.videos || [];
+    return videos.map((v: any) => ({
+      id: v.id ?? '',
+      title: v.title ?? '',
+      agent: v.agent ?? '',
+      category: v.category ?? '',
+      views: v.views ?? 0,
+      duration: v.duration ?? 0,
+      created_at: v.created_at ?? new Date().toISOString(),
+      stream_url: v.stream_url ?? `https://bottube.ai/api/videos/${v.id}/stream`,
     }));
   }
 
@@ -184,7 +191,17 @@ export class GrazerClient {
         ? { Authorization: `Bearer ${this.config.moltbook}` }
         : {},
     });
-    return resp.data.posts || [];
+    const posts = resp.data?.posts || [];
+    return posts.map((p: any) => ({
+      id: p.id ?? 0,
+      title: p.title ?? '',
+      content: p.content ?? '',
+      submolt: p.submolt ?? p.submolt_name ?? '',
+      author: p.author ?? 'anonymous',
+      upvotes: p.upvotes ?? 0,
+      created_at: p.created_at ?? new Date().toISOString(),
+      url: p.url ?? '',
+    }));
   }
 
   async postMoltbook(
@@ -269,7 +286,14 @@ export class GrazerClient {
         ? { Authorization: `Bearer ${this.config.clawsta}` }
         : {},
     });
-    return resp.data.posts || [];
+    const posts = resp.data?.posts || [];
+    return posts.map((p: any) => ({
+      id: p.id ?? 0,
+      content: p.content ?? '',
+      author: p.author ?? 'anonymous',
+      likes: p.likes ?? 0,
+      created_at: p.created_at ?? new Date().toISOString(),
+    }));
   }
 
   async postClawsta(
@@ -318,7 +342,16 @@ export class GrazerClient {
       `https://www.4claw.org/api/v1/boards/${board}/threads`,
       { params, headers: this.fourclawHeaders() }
     );
-    return resp.data.threads || [];
+    const threads = resp.data?.threads || [];
+    return threads.map((t: any) => ({
+      id: t.id ?? '',
+      title: t.title ?? '',
+      content: t.content,
+      agentName: t.agentName ?? t.agent_name ?? '',
+      board: t.board ?? board,
+      replyCount: t.replyCount ?? t.reply_count ?? 0,
+      created_at: t.created_at ?? new Date().toISOString(),
+    }));
   }
 
   async getFourclawBoards(): Promise<FourclawBoard[]> {
@@ -440,7 +473,19 @@ export class GrazerClient {
       const headers = this.config.thecolony ? await this.colonyAuth() : {};
       const resp = await this.http.get('https://thecolony.cc/api/v1/posts', { params, headers });
       const data = resp.data;
-      return (data.posts || data.results || (Array.isArray(data) ? data : [])).slice(0, limit);
+      const posts = (data.posts || data.results || (Array.isArray(data) ? data : []));
+      return (posts.slice(0, limit) as any[]).map((p: any) => ({
+        id: p.id ?? '',
+        title: p.title ?? '',
+        body: p.body ?? '',
+        post_type: p.post_type ?? p.postType ?? 'discussion',
+        author: {
+          display_name: p.author?.display_name ?? p.author?.displayName ?? '',
+          username: p.author?.username ?? '',
+        },
+        comment_count: p.comment_count ?? p.commentCount ?? 0,
+        created_at: p.created_at ?? new Date().toISOString(),
+      }));
     } catch {
       return [];
     }
@@ -485,8 +530,15 @@ export class GrazerClient {
         headers: this.moltxHeaders(),
       });
       const data = resp.data;
-      if (data?.data?.posts) return data.data.posts.slice(0, limit);
-      return (data.posts || (Array.isArray(data) ? data : [])).slice(0, limit);
+      const posts = data?.data?.posts || data?.posts || (Array.isArray(data) ? data : []);
+      return posts.slice(0, limit).map((p: any) => ({
+        id: p.id ?? '',
+        content: p.content ?? '',
+        author_display_name: p.author_display_name ?? p.authorDisplayName ?? 'anonymous',
+        like_count: p.like_count ?? p.likeCount ?? 0,
+        reply_count: p.reply_count ?? p.replyCount ?? 0,
+        created_at: p.created_at ?? new Date().toISOString(),
+      }));
     } catch {
       return [];
     }
@@ -499,8 +551,15 @@ export class GrazerClient {
         headers: this.moltxHeaders(),
       });
       const data = resp.data;
-      if (data?.data?.posts) return data.data.posts.slice(0, limit);
-      return (data.posts || (Array.isArray(data) ? data : [])).slice(0, limit);
+      const posts = data?.data?.posts || data?.posts || (Array.isArray(data) ? data : []);
+      return posts.slice(0, limit).map((p: any) => ({
+        id: p.id ?? '',
+        content: p.content ?? '',
+        author_display_name: p.author_display_name ?? p.authorDisplayName ?? 'anonymous',
+        like_count: p.like_count ?? p.likeCount ?? 0,
+        reply_count: p.reply_count ?? p.replyCount ?? 0,
+        created_at: p.created_at ?? new Date().toISOString(),
+      }));
     } catch {
       return this.discoverMoltX(limit);
     }
@@ -535,7 +594,15 @@ export class GrazerClient {
         headers: this.moltexchangeHeaders(),
       });
       const data = resp.data;
-      return (data.questions || (Array.isArray(data) ? data : [])).slice(0, limit);
+      const questions = data?.questions || (Array.isArray(data) ? data : []);
+      return questions.slice(0, limit).map((q: any) => ({
+        id: q.id ?? '',
+        title: q.title ?? '',
+        body: q.body ?? '',
+        author: q.author ?? 'anonymous',
+        answer_count: q.answer_count ?? q.answerCount ?? 0,
+        created_at: q.created_at ?? new Date().toISOString(),
+      }));
     } catch {
       return [];
     }
