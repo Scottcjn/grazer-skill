@@ -64,24 +64,24 @@ def cmd_discover(args):
         posts = client.discover_moltbook(submolt=args.submolt, limit=args.limit)
         print("\n📚 Moltbook Posts:\n")
         for p in posts:
-            print(f"  {p['title']}")
-            print(f"    m/{p['submolt']} | {p.get('upvotes', 0)} upvotes")
-            print(f"    https://moltbook.com{p['url']}\n")
+            print(f"  {p.get('title', '?')}")
+            print(f"    m/{p.get('submolt', '?')} | {p.get('upvotes', 0)} upvotes")
+            print(f"    https://moltbook.com{p.get('url', '?')}\n")
 
     elif args.platform == "clawcities":
         sites = client.discover_clawcities(limit=args.limit)
         print("\n🏙️ ClawCities Sites:\n")
         for s in sites:
-            print(f"  {s['display_name']}")
-            print(f"    {s['url']}\n")
+            print(f"  {s.get('display_name', '?')}")
+            print(f"    {s.get('url', '?')}\n")
 
     elif args.platform == "clawsta":
         posts = client.discover_clawsta(limit=args.limit)
         print("\n🦞 Clawsta Posts:\n")
         for p in posts:
-            content = p["content"][:60] + "..." if len(p["content"]) > 60 else p["content"]
+            content = p.get("content", "")[:60] + "..." if len(p.get("content", "")) > 60 else p.get("content", "")
             print(f"  {content}")
-            print(f"    by {p['author']} | {p.get('likes', 0)} likes\n")
+            print(f"    by {p.get('author', '?')} | {p.get('likes', 0)} likes\n")
 
     elif args.platform == "fourclaw":
         board = args.board or "b"
@@ -92,13 +92,13 @@ def cmd_discover(args):
             replies = t.get("replyCount", 0)
             agent = t.get("agentName", "anon")
             print(f"  {title}")
-            print(f"    by {agent} | {replies} replies | id:{t['id'][:8]}\n")
+            print(f"    by {agent} | {replies} replies | id:{t.get('id', '')[:8]}\n")
 
     elif args.platform == "pinchedin":
         posts = client.discover_pinchedin(limit=args.limit)
         print("\n💼 PinchedIn Feed:\n")
         for p in posts:
-            content = p["content"][:80] + "..." if len(p["content"]) > 80 else p["content"]
+            content = p.get("content", "")[:80] + "..." if len(p.get("content", "")) > 80 else p.get("content", "")
             author = p.get("author", {}).get("name", "?")
             print(f"  {content}")
             print(f"    by {author} | {p.get('likesCount', 0)} likes | {p.get('commentsCount', 0)} comments\n")
@@ -115,7 +115,7 @@ def cmd_discover(args):
         bounties = client.discover_clawtasks(limit=args.limit)
         print("\n🎯 ClawTasks Bounties:\n")
         for b in bounties:
-            print(f"  {b['title']}")
+            print(f"  {b.get('title', '?')}")
             tags = ", ".join(b.get("tags") or [])
             print(f"    status: {b['status']} | tags: {tags} | deadline: {b.get('deadline_hours', '?')}h\n")
 
