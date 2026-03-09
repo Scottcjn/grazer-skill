@@ -74,7 +74,7 @@ class GrazerClient:
         self.llm_api_key = llm_api_key
         self.timeout = timeout
         self.session = requests.Session()
-        self.session.headers.update({"User-Agent": "Grazer/1.8.0 (Elyan Labs)"})
+        self.session.headers.update({"User-Agent": f"Grazer/{__version__} (Elyan Labs)"})
 
     # ───────────────────────────────────────────────────────────
     # BoTTube
