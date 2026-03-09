@@ -99,6 +99,9 @@ class GrazerClient:
         for v in videos:
             if "id" in v:
                 v["stream_url"] = f"https://bottube.ai/api/videos/{v['id']}/stream"
+            # Normalize: API returns agent_name, consumers expect agent
+            if "agent" not in v and "agent_name" in v:
+                v["agent"] = v["agent_name"]
         return videos
 
     def search_bottube(self, query: str, limit: int = 10) -> List[Dict]:
@@ -109,7 +112,11 @@ class GrazerClient:
             timeout=self.timeout,
         )
         resp.raise_for_status()
-        return resp.json().get("videos", [])
+        videos = resp.json().get("videos", [])
+        for v in videos:
+            if "agent" not in v and "agent_name" in v:
+                v["agent"] = v["agent_name"]
+        return videos
 
     def get_bottube_stats(self) -> Dict:
         """Get BoTTube platform statistics."""
@@ -1224,6 +1231,86 @@ class GrazerClient:
 
         return results
 
+    # ───────────────────────────────────────────────────────────
+    # SEO Dofollow Backlink Ping — Beacon Atlas Integration
+    # ───────────────────────────────────────────────────────────
+
+    def seo_ping(
+        self,
+        agent_id: str,
+        relay_token: str,
+        *,
+        seo_url: str = "",
+        seo_description: str = "",
+        status: str = "alive",
+        relay_host: str = "https://rustchain.org",
+    ) -> Dict:
+        """Send an SEO-enhanced heartbeat to the Beacon relay.
+
+        This generates a dofollow backlink on the agent's crawlable profile page.
+        Each ping refreshes the agent's status and updates SEO metadata.
+
+        Args:
+            agent_id: The agent's bcn_ ID.
+            relay_token: Bearer token from registration.
+            seo_url: Agent's homepage URL (becomes dofollow link on profile).
+            seo_description: Agent description for meta tags.
+            status: One of "alive", "degraded", "shutting_down".
+            relay_host: Beacon relay base URL.
+
+        Returns:
+            Dict with heartbeat confirmation and SEO backlink data including
+            the agent's crawlable profile URL (the dofollow backlink).
+        """
+        payload = {
+            "agent_id": agent_id,
+            "status": status,
+        }
+        if seo_url:
+            payload["seo_url"] = seo_url
+        if seo_description:
+            payload["seo_description"] = seo_description
+
+        try:
+            resp = self.session.post(
+                f"{relay_host}/relay/heartbeat/seo",
+                json=payload,
+                headers={"Authorization": f"Bearer {relay_token}"},
+                timeout=self.timeout,
+            )
+            return resp.json()
+        except Exception as e:
+            return {"error": str(e), "ok": False}
+
+    def seo_agent_profile(
+        self,
+        agent_id: str,
+        relay_host: str = "https://rustchain.org",
+        format: str = "json",
+    ) -> Dict:
+        """Fetch an agent's SEO profile from the Beacon relay.
+
+        Args:
+            agent_id: The agent's bcn_ ID.
+            relay_host: Beacon relay base URL.
+            format: Output format — "json" (GPT-optimized), "xml" (Claude-optimized),
+                    or "html" (crawlable profile page).
+
+        Returns:
+            Agent profile data in the requested format.
+        """
+        ext = {"json": ".json", "xml": ".xml", "html": ""}.get(format, ".json")
+        try:
+            resp = self.session.get(
+                f"{relay_host}/beacon/agent/{agent_id}{ext}",
+                timeout=self.timeout,
+            )
+            if format == "json":
+                return resp.json()
+            return {"content": resp.text, "content_type": resp.headers.get("content-type", "")}
+        except Exception as e:
+            return {"error": str(e)}
+
     def report_download(self, platform: str, version: str):
         """Report download to BoTTube tracking system."""
         try:
@@ -1242,5 +1329,5 @@ class GrazerClient:
             pass
 
 
-__version__ = "1.8.0"
+__version__ = "1.9.1"
 __all__ = ["GrazerClient", "ClawHubClient", "generate_svg", "svg_to_media", "generate_template_svg", "generate_llm_svg"]

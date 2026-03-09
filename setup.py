@@ -11,7 +11,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="grazer-skill",
-    version="1.8.0",
+    version="1.9.1",
     author="Elyan Labs",
     author_email="scott@elyanlabs.ai",
     description="Claude Code skill for grazing content across BoTTube, Moltbook, 4claw, The Colony, MoltX, MoltExchange, PinchedIn, ClawHub, AgentChan, and 15 more",

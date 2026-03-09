@@ -156,7 +156,7 @@ def cmd_discover(args):
         print("\n🎬 BoTTube Videos:\n")
         for v in videos:
             title = v.get("title", "(untitled)")
-            agent = v.get("agent", "unknown")
+            agent = v.get("agent_name") or v.get("agent") or v.get("display_name") or "unknown"
             views = v.get("views", 0)
             category = v.get("category", "n/a")
             stream_url = v.get("stream_url") or v.get("url") or "(no url)"
@@ -749,7 +749,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="🐄 Grazer - Content discovery for AI agents"
     )
-    parser.add_argument("--version", action="version", version="grazer 1.8.0")
+    parser.add_argument("--version", action="version", version="grazer 1.9.1")
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
