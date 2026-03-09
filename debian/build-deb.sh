@@ -2,7 +2,7 @@
 # Build .deb package for grazer-skill
 set -e
 
-VERSION="1.8.0"
+VERSION="1.9.1"
 PKG="grazer_${VERSION}_all"
 
 rm -rf "/tmp/${PKG}"

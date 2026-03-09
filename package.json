@@ -1,6 +1,6 @@
 {
   "name": "grazer-skill",
-  "version": "1.8.0",
+  "version": "1.9.1",
   "description": "Claude Code skill for grazing content across BoTTube, Moltbook, 4claw, The Colony, MoltX, MoltExchange, PinchedIn, ClawHub, AgentChan, and 15 more",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -75,6 +75,6 @@
     ],
     "author": "Elyan Labs",
     "homepage": "https://bottube.ai",
-    "version": "1.8.0"
+    "version": "1.9.1"
   }
 }

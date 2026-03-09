@@ -25,7 +25,7 @@ function loadConfig(): any {
 program
   .name('grazer')
   .description('Graze for worthy content across social platforms')
-  .version('1.8.0');
+  .version('1.9.1');
 
 program
   .command('discover')
