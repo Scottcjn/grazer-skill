@@ -8,8 +8,9 @@ import { generateSvg, svgToMedia, generateTemplateSvg, generateLlmSvg } from './
 import type { ImageGenResult, FourclawMedia, ImageGenConfig } from './imagegen';
 
 import { YouTubeDiscovery, YouTubeVideo } from './youtube';
-export { generateSvg, svgToMedia, generateTemplateSvg, generateLlmSvg, YouTubeDiscovery };
-export type { ImageGenResult, FourclawMedia, ImageGenConfig, YouTubeVideo };
+import { BottubeDiscovery, BottubeVideo, BottubeAgent, BottubeStats } from './bottube';
+export { generateSvg, svgToMedia, generateTemplateSvg, generateLlmSvg, YouTubeDiscovery, BottubeDiscovery };
+export type { ImageGenResult, FourclawMedia, ImageGenConfig, YouTubeVideo, BottubeVideo, BottubeAgent, BottubeStats };
 
 export interface GrazerConfig {
   bottube?: string;
@@ -137,36 +138,63 @@ export class GrazerClient {
   }
 
   // ───────────────────────────────────────────────────────────
-  // BoTTube
+  // BoTTube (using BottubeDiscovery - Issue #83)
   // ───────────────────────────────────────────────────────────
 
+  private _bottube?: BottubeDiscovery;
+
+  private get bottube(): BottubeDiscovery {
+    if (!this._bottube) {
+      this._bottube = new BottubeDiscovery(this.config.bottube || 'https://bottube.ai');
+    }
+    return this._bottube;
+  }
+
+  /**
+   * Discover BoTTube videos (legacy method)
+   * @deprecated Use bottube discovery methods instead
+   */
   async discoverBottube(options: {
     category?: string;
     agent?: string;
     limit?: number;
   }): Promise<BottubeVideo[]> {
-    const { category, agent, limit = 20 } = options;
-    const params: any = { limit };
-    if (category) params.category = category;
-    if (agent) params.agent = agent;
-
-    const resp = await this.http.get('https://bottube.ai/api/videos', { params });
-    return resp.data.videos.map((v: any) => ({
-      ...v,
-      stream_url: `https://bottube.ai/api/videos/${v.id}/stream`,
-    }));
+    return this.bottube.getNewUploads(options.limit || 20);
   }
 
-  async searchBottube(query: string, limit = 10): Promise<BottubeVideo[]> {
-    const resp = await this.http.get('https://bottube.ai/api/videos/search', {
-      params: { q: query, limit },
-    });
-    return resp.data.videos;
+  /**
+   * Get trending videos from BoTTube (Issue #83)
+   */
+  async getBottubeTrending(limit: number = 20): Promise<BottubeVideo[]> {
+    return this.bottube.getTrending(limit);
   }
 
-  async getBottubeStats(): Promise<any> {
-    const resp = await this.http.get('https://bottube.ai/api/stats');
-    return resp.data;
+  /**
+   * Get new uploads from BoTTube (Issue #83)
+   */
+  async getBottubeNewUploads(limit: number = 20): Promise<BottubeVideo[]> {
+    return this.bottube.getNewUploads(limit);
+  }
+
+  /**
+   * Get agent profile from BoTTube (Issue #83)
+   */
+  async getBottubeAgentProfile(agentName: string): Promise<BottubeAgent | null> {
+    return this.bottube.getAgentProfile(agentName);
+  }
+
+  /**
+   * Search videos on BoTTube (Issue #83)
+   */
+  async searchBottube(query: string, limit: number = 20): Promise<BottubeVideo[]> {
+    return this.bottube.searchVideos(query, limit);
+  }
+
+  /**
+   * Get BoTTube platform stats (Issue #83)
+   */
+  async getBottubeStats(): Promise<BottubeStats | null> {
+    return this.bottube.getStats();
   }
 
   // ───────────────────────────────────────────────────────────
