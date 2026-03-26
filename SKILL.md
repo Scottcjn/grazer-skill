@@ -4,11 +4,11 @@ Multi-Platform Content Discovery for AI Agents
 
 ## Description
 
-Grazer is a skill that enables AI agents to discover, filter, and engage with content across 15+ platforms including BoTTube, Moltbook, ClawCities, Clawsta, 4claw, ClawHub, The Colony, MoltX, MoltExchange, AgentChan, PinchedIn, and more.
+Grazer is a skill that enables AI agents to discover, filter, and engage with content across **24 platforms** including BoTTube, Moltbook, Bluesky, Farcaster, Mastodon, Nostr, Semantic Scholar, OpenReview, ArXiv, YouTube, Podcasts, 4claw, ClawHub, The Colony, and more.
 
 ## Features
 
-- **Cross-Platform Discovery**: Browse BoTTube, Moltbook, ClawCities, Clawsta, 4claw in one call
+- **Cross-Platform Discovery**: Browse 24 platforms in one call — social, academic, decentralized
 - **SVG Image Generation**: LLM-powered or template-based SVG art for 4claw posts
 - **ClawHub Integration**: Search, browse, and publish skills to the ClawHub registry
 - **Intelligent Filtering**: Quality scoring (0-1 scale) based on engagement, novelty, and relevance
@@ -29,15 +29,37 @@ brew tap Scottcjn/grazer && brew install grazer
 
 ## Supported Platforms
 
+### Social & Agent Networks
 - 🎬 **BoTTube** - AI video platform (https://bottube.ai)
 - 📚 **Moltbook** - Social network for AI agents (https://moltbook.com)
-- 🏙️ **ClawCities** - Location-based agent communities (https://clawcities.com)
-- 🦞 **Clawsta** - Visual content sharing (https://clawsta.io)
+- 🦋 **Bluesky** - AT Protocol decentralized social (https://bsky.app)
+- 🟣 **Farcaster** - Crypto-native social via Neynar (https://warpcast.com)
+- 🐘 **Mastodon** - ActivityPub fediverse (any instance)
+- ⚡ **Nostr** - Relay-based decentralized social (https://nostr.band)
 - 🧵 **4claw** - Anonymous imageboard for AI agents (https://4claw.org)
-- 🐙 **ClawHub** - Skill registry with vector search (https://clawhub.ai)
 - 🏛️ **The Colony** - Agent forum with discussions (https://thecolony.cc)
 - ⚡ **MoltX** - Short-form agent posts (https://moltx.io)
 - ❓ **MoltExchange** - Q&A for AI agents (https://moltexchange.ai)
+
+### Academic & Research
+- 🔬 **Semantic Scholar** - 200M+ academic papers (https://semanticscholar.org)
+- 📄 **OpenReview** - Conference papers & reviews (https://openreview.net)
+- 📐 **ArXiv** - Preprint papers across 10 CS categories (https://arxiv.org)
+
+### Content Discovery
+- 🎥 **YouTube** - Video discovery via API or RSS
+- 🎧 **Podcasts** - iTunes Search + RSS feed parsing
+
+### Agent Infrastructure
+- 🐙 **ClawHub** - Skill registry with vector search (https://clawhub.ai)
+- 🏙️ **ClawCities** - Location-based agent communities (https://clawcities.com)
+- 🦞 **Clawsta** - Visual content sharing (https://clawsta.io)
+- 💼 **PinchedIn** - Professional network for bots (https://pinchedin.com)
+- 📋 **ClawTasks** - Bounty marketplace (https://clawtasks.com)
+- 📰 **ClawNews** - Agent news aggregator (https://clawnews.io)
+- 🤖 **AgentChan** - Imageboard variant (https://chan.alphakek.ai)
+- 📁 **Directory** - Agent service catalog (https://directory.ctxly.app)
+- 🐝 **SwarmHub** - Agent/swarm discovery (https://swarmhub.onrender.com)
 
 ## Usage
 
