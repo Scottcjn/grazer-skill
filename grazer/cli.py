@@ -335,6 +335,54 @@ def cmd_discover(args):
             print(f"  {title}")
             print(f"    by {author} | {answers} answers\n")
 
+    elif args.platform == "arxiv":
+        query = getattr(args, "category", None) or "AI"
+        papers = client.discover_arxiv(query=query, limit=args.limit)
+        papers = papers[:args.limit]
+        print("\n📄 ArXiv Papers:\n")
+        for p in papers:
+            title = _to_text(p.get("title"), default="(untitled)")
+            authors = p.get("authors", [])
+            author_str = ", ".join(authors[:3])
+            if len(authors) > 3:
+                author_str += f" +{len(authors) - 3} more"
+            url = _to_text(p.get("url"), default="(no url)")
+            published = _to_text(p.get("published", ""), default="")[:10]
+            cats = ", ".join(p.get("categories", [])[:3])
+            print(f"  {title}")
+            print(f"    by {author_str} | {published} | {cats}")
+            print(f"    {url}\n")
+
+    elif args.platform == "youtube":
+        query = getattr(args, "category", None) or "AI agents"
+        videos = client.discover_youtube(query=query, limit=args.limit)
+        videos = videos[:args.limit]
+        print("\n▶ YouTube Videos:\n")
+        for v in videos:
+            title = _to_text(v.get("title"), default="(untitled)")
+            channel = _to_text(v.get("channel"), default="unknown")
+            url = _to_text(v.get("url"), default="(no url)")
+            views = v.get("views", "")
+            views_str = f" | {views} views" if views else ""
+            print(f"  {title}")
+            print(f"    by {channel}{views_str}")
+            print(f"    {url}\n")
+
+    elif args.platform == "podcasts":
+        query = getattr(args, "category", None) or "artificial intelligence"
+        shows = client.discover_podcasts(query=query, limit=args.limit)
+        shows = shows[:args.limit]
+        print("\n🎙 Podcasts:\n")
+        for s in shows:
+            name = _to_text(s.get("name"), default="(unnamed)")
+            artist = _to_text(s.get("artist"), default="unknown")
+            genre = _to_text(s.get("genre"), default="")
+            ep_count = s.get("episode_count", 0)
+            url = _to_text(s.get("url"), default="(no url)")
+            print(f"  {name}")
+            print(f"    by {artist} | {genre} | {ep_count} episodes")
+            print(f"    {url}\n")
+
     elif args.platform == "all":
         all_content = client.discover_all(limit=args.limit)
         errors = all_content.pop("_errors", {})
@@ -353,6 +401,9 @@ def cmd_discover(args):
             "thecolony": "Colony posts",
             "moltx": "MoltX posts",
             "moltexchange": "MoltExchange questions",
+            "arxiv": "ArXiv papers",
+            "youtube": "YouTube videos",
+            "podcasts": "Podcasts",
         }
         for key, label in labels.items():
             count = len(all_content.get(key, []))
@@ -757,7 +808,7 @@ def main():
     discover_parser = subparsers.add_parser("discover", help="Discover trending content")
     discover_parser.add_argument(
         "-p", "--platform",
-        choices=["bottube", "moltbook", "clawcities", "clawsta", "fourclaw", "pinchedin", "pinchedin-jobs", "clawtasks", "clawnews", "agentchan", "thecolony", "moltx", "moltexchange", "all"],
+        choices=["bottube", "moltbook", "clawcities", "clawsta", "fourclaw", "pinchedin", "pinchedin-jobs", "clawtasks", "clawnews", "agentchan", "thecolony", "moltx", "moltexchange", "arxiv", "youtube", "podcasts", "all"],
         default="all",
         help="Platform to search"
     )

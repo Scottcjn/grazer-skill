@@ -10,6 +10,9 @@ from datetime import datetime
 
 from grazer.imagegen import generate_svg, svg_to_media, generate_template_svg, generate_llm_svg
 from grazer.clawhub import ClawHubClient
+from grazer.arxiv_grazer import ArxivGrazer
+from grazer.youtube_grazer import YouTubeGrazer
+from grazer.podcast_grazer import PodcastGrazer
 
 # Platform registry — canonical names, URLs, and auth requirements
 PLATFORMS = {
@@ -49,6 +52,7 @@ class GrazerClient:
         thecolony_key: Optional[str] = None,
         moltx_key: Optional[str] = None,
         moltexchange_key: Optional[str] = None,
+        youtube_api_key: Optional[str] = None,
         llm_url: Optional[str] = None,
         llm_model: str = "gpt-oss-120b",
         llm_api_key: Optional[str] = None,
@@ -67,8 +71,12 @@ class GrazerClient:
         self.thecolony_key = thecolony_key
         self.moltx_key = moltx_key
         self.moltexchange_key = moltexchange_key
+        self.youtube_api_key = youtube_api_key
         self._colony_jwt = None  # Cached JWT from API key exchange
         self._clawhub = ClawHubClient(token=clawhub_token, timeout=timeout) if clawhub_token else ClawHubClient(timeout=timeout)
+        self._arxiv = ArxivGrazer(timeout=timeout)
+        self._youtube = YouTubeGrazer(api_key=youtube_api_key, timeout=timeout)
+        self._podcast = PodcastGrazer(timeout=timeout)
         self.llm_url = llm_url
         self.llm_model = llm_model
         self.llm_api_key = llm_api_key
@@ -1179,6 +1187,65 @@ class GrazerClient:
         return {}
 
     # ───────────────────────────────────────────────────────────
+    # ArXiv
+    # ───────────────────────────────────────────────────────────
+
+    def discover_arxiv(
+        self,
+        query: Optional[str] = None,
+        category: Optional[str] = None,
+        limit: int = 10,
+    ) -> List[Dict]:
+        """Discover recent arXiv papers.
+
+        Args:
+            query: Free-text search (e.g. "large language models")
+            category: Shorthand (ai, ml, cv, nlp, crypto) or full (cs.AI)
+            limit: Maximum results
+        """
+        return self._arxiv.discover(query=query, category=category, limit=limit)
+
+    def get_arxiv_paper(self, arxiv_id: str) -> Optional[Dict]:
+        """Fetch a single arXiv paper by ID (e.g. '2401.12345')."""
+        return self._arxiv.get_paper(arxiv_id)
+
+    # ───────────────────────────────────────────────────────────
+    # YouTube
+    # ───────────────────────────────────────────────────────────
+
+    def discover_youtube(
+        self,
+        query: str = "AI agents",
+        limit: int = 10,
+    ) -> List[Dict]:
+        """Discover YouTube videos by search query.
+
+        Uses YouTube Data API v3 when a key is configured, otherwise
+        falls back to lightweight scraping.
+        """
+        return self._youtube.discover(query=query, limit=limit)
+
+    def youtube_channel(self, channel_id: str, limit: int = 10) -> List[Dict]:
+        """Get recent videos from a YouTube channel (via public RSS)."""
+        return self._youtube.channel_videos(channel_id, limit=limit)
+
+    # ───────────────────────────────────────────────────────────
+    # Podcasts
+    # ───────────────────────────────────────────────────────────
+
+    def discover_podcasts(
+        self,
+        query: str = "artificial intelligence",
+        limit: int = 10,
+    ) -> List[Dict]:
+        """Search for podcasts via the iTunes Search API."""
+        return self._podcast.search(query=query, limit=limit)
+
+    def podcast_episodes(self, feed_url: str, limit: int = 10) -> List[Dict]:
+        """Fetch recent episodes from a podcast RSS feed URL."""
+        return self._podcast.episodes(feed_url, limit=limit)
+
+    # ───────────────────────────────────────────────────────────
     # Cross-Platform
     # ───────────────────────────────────────────────────────────
 
@@ -1204,6 +1271,9 @@ class GrazerClient:
             "thecolony": [],
             "moltx": [],
             "moltexchange": [],
+            "arxiv": [],
+            "youtube": [],
+            "podcasts": [],
             "_errors": {},
         }
 
@@ -1221,6 +1291,9 @@ class GrazerClient:
             ("thecolony",     lambda: self.discover_colony(limit=limit)),
             ("moltx",         lambda: self.discover_moltx(limit=limit)),
             ("moltexchange",  lambda: self.discover_moltexchange(limit=limit)),
+            ("arxiv",         lambda: self.discover_arxiv(limit=limit)),
+            ("youtube",       lambda: self.discover_youtube(limit=limit)),
+            ("podcasts",      lambda: self.discover_podcasts(limit=limit)),
         ]
 
         for name, fn in calls:
