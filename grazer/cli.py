@@ -383,6 +383,92 @@ def cmd_discover(args):
             print(f"    by {artist} | {genre} | {ep_count} episodes")
             print(f"    {url}\n")
 
+    elif args.platform == "bluesky":
+        query = getattr(args, "category", None) or "AI agents"
+        posts = client.discover_bluesky(query=query, limit=args.limit)
+        posts = posts[:args.limit]
+        print("\n🦋 Bluesky Posts:\n")
+        for p in posts:
+            text = _truncate(p.get("text"), 80, default="(no content)")
+            author = _to_text(p.get("author_name"), default=_to_text(p.get("author_handle"), default="unknown"))
+            likes = p.get("likes", 0)
+            url = _to_text(p.get("url"), default="(no url)")
+            print(f"  {text}")
+            print(f"    by {author} | {likes} likes")
+            print(f"    {url}\n")
+
+    elif args.platform == "farcaster":
+        query = getattr(args, "category", None) or "AI agents"
+        casts = client.discover_farcaster(query=query, limit=args.limit)
+        casts = casts[:args.limit]
+        print("\n🟪 Farcaster Casts:\n")
+        for c in casts:
+            text = _truncate(c.get("text"), 80, default="(no content)")
+            author = _to_text(c.get("author_name"), default=_to_text(c.get("author_username"), default="unknown"))
+            likes = c.get("likes", 0)
+            url = _to_text(c.get("url"), default="(no url)")
+            print(f"  {text}")
+            print(f"    by {author} | {likes} likes")
+            print(f"    {url}\n")
+
+    elif args.platform == "semantic-scholar":
+        query = getattr(args, "category", None) or "large language models"
+        papers = client.discover_semantic_scholar(query=query, limit=args.limit)
+        papers = papers[:args.limit]
+        print("\n🎓 Semantic Scholar Papers:\n")
+        for p in papers:
+            title = _to_text(p.get("title"), default="(untitled)")
+            authors = p.get("authors", [])
+            author_str = ", ".join(authors[:3]) + ("..." if len(authors) > 3 else "")
+            year = p.get("year", "")
+            citations = p.get("citation_count", 0)
+            url = _to_text(p.get("url"), default="(no url)")
+            print(f"  {title}")
+            print(f"    by {author_str} | {year} | {citations} citations")
+            print(f"    {url}\n")
+
+    elif args.platform == "openreview":
+        query = getattr(args, "category", None) or "large language models"
+        papers = client.discover_openreview(query=query, limit=args.limit)
+        papers = papers[:args.limit]
+        print("\n📋 OpenReview Papers:\n")
+        for p in papers:
+            title = _to_text(p.get("title"), default="(untitled)")
+            authors = p.get("authors", [])
+            author_str = ", ".join(authors[:3]) + ("..." if len(authors) > 3 else "")
+            venue = _to_text(p.get("venue"), default="")
+            url = _to_text(p.get("url"), default="(no url)")
+            print(f"  {title}")
+            print(f"    by {author_str} | {venue}")
+            print(f"    {url}\n")
+
+    elif args.platform == "mastodon":
+        query = getattr(args, "category", None) or "AI"
+        posts = client.discover_mastodon(query=query, limit=args.limit)
+        posts = posts[:args.limit]
+        print("\n🐘 Mastodon Posts:\n")
+        for p in posts:
+            text = _truncate(p.get("text"), 80, default="(no content)")
+            author = _to_text(p.get("author_name"), default=_to_text(p.get("author_acct"), default="unknown"))
+            favs = p.get("favourites", 0)
+            url = _to_text(p.get("url"), default="(no url)")
+            print(f"  {text}")
+            print(f"    by {author} | {favs} favourites")
+            print(f"    {url}\n")
+
+    elif args.platform == "nostr":
+        query = getattr(args, "category", None) or "AI"
+        events = client.discover_nostr(query=query, limit=args.limit)
+        events = events[:args.limit]
+        print("\n🔮 Nostr Events:\n")
+        for e in events:
+            content = _truncate(e.get("content"), 80, default="(no content)")
+            pubkey = _to_text(e.get("pubkey"), default="unknown")[:16]
+            url = _to_text(e.get("url"), default="(no url)")
+            print(f"  {content}")
+            print(f"    by {pubkey}...")
+            print(f"    {url}\n")
+
     elif args.platform == "all":
         all_content = client.discover_all(limit=args.limit)
         errors = all_content.pop("_errors", {})
@@ -404,6 +490,12 @@ def cmd_discover(args):
             "arxiv": "ArXiv papers",
             "youtube": "YouTube videos",
             "podcasts": "Podcasts",
+            "bluesky": "Bluesky posts",
+            "farcaster": "Farcaster casts",
+            "semantic_scholar": "Semantic Scholar papers",
+            "openreview": "OpenReview papers",
+            "mastodon": "Mastodon posts",
+            "nostr": "Nostr events",
         }
         for key, label in labels.items():
             count = len(all_content.get(key, []))
@@ -808,7 +900,7 @@ def main():
     discover_parser = subparsers.add_parser("discover", help="Discover trending content")
     discover_parser.add_argument(
         "-p", "--platform",
-        choices=["bottube", "moltbook", "clawcities", "clawsta", "fourclaw", "pinchedin", "pinchedin-jobs", "clawtasks", "clawnews", "agentchan", "thecolony", "moltx", "moltexchange", "arxiv", "youtube", "podcasts", "all"],
+        choices=["bottube", "moltbook", "clawcities", "clawsta", "fourclaw", "pinchedin", "pinchedin-jobs", "clawtasks", "clawnews", "agentchan", "thecolony", "moltx", "moltexchange", "arxiv", "youtube", "podcasts", "bluesky", "farcaster", "semantic-scholar", "openreview", "mastodon", "nostr", "all"],
         default="all",
         help="Platform to search"
     )

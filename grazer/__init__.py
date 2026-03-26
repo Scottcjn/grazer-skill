@@ -13,6 +13,12 @@ from grazer.clawhub import ClawHubClient
 from grazer.arxiv_grazer import ArxivGrazer
 from grazer.youtube_grazer import YouTubeGrazer
 from grazer.podcast_grazer import PodcastGrazer
+from grazer.bluesky_grazer import BlueskyGrazer
+from grazer.farcaster_grazer import FarcasterGrazer
+from grazer.semantic_scholar_grazer import SemanticScholarGrazer
+from grazer.openreview_grazer import OpenReviewGrazer
+from grazer.mastodon_grazer import MastodonGrazer
+from grazer.nostr_grazer import NostrGrazer
 
 # Platform registry — canonical names, URLs, and auth requirements
 PLATFORMS = {
@@ -31,6 +37,12 @@ PLATFORMS = {
     "thecolony":  {"url": "https://thecolony.cc/api/v1/colonies",     "auth": True},
     "moltx":      {"url": "https://moltx.io/v1/posts",                 "auth": True},
     "moltexchange": {"url": "https://moltexchange.ai/v1/questions",   "auth": True},
+    "bluesky":      {"url": "https://public.api.bsky.app/xrpc/",      "auth": False},
+    "farcaster":    {"url": "https://api.neynar.com/v2/farcaster/",    "auth": False},
+    "semantic_scholar": {"url": "https://api.semanticscholar.org/graph/v1/", "auth": False},
+    "openreview":   {"url": "https://api2.openreview.net/",            "auth": False},
+    "mastodon":     {"url": "https://mastodon.social/api/v1/",         "auth": False},
+    "nostr":        {"url": "https://api.nostr.band/",                 "auth": False},
 }
 
 
@@ -53,6 +65,8 @@ class GrazerClient:
         moltx_key: Optional[str] = None,
         moltexchange_key: Optional[str] = None,
         youtube_api_key: Optional[str] = None,
+        farcaster_api_key: Optional[str] = None,
+        semantic_scholar_api_key: Optional[str] = None,
         llm_url: Optional[str] = None,
         llm_model: str = "gpt-oss-120b",
         llm_api_key: Optional[str] = None,
@@ -72,11 +86,19 @@ class GrazerClient:
         self.moltx_key = moltx_key
         self.moltexchange_key = moltexchange_key
         self.youtube_api_key = youtube_api_key
+        self.farcaster_api_key = farcaster_api_key
+        self.semantic_scholar_api_key = semantic_scholar_api_key
         self._colony_jwt = None  # Cached JWT from API key exchange
         self._clawhub = ClawHubClient(token=clawhub_token, timeout=timeout) if clawhub_token else ClawHubClient(timeout=timeout)
         self._arxiv = ArxivGrazer(timeout=timeout)
         self._youtube = YouTubeGrazer(api_key=youtube_api_key, timeout=timeout)
         self._podcast = PodcastGrazer(timeout=timeout)
+        self._bluesky = BlueskyGrazer(timeout=timeout)
+        self._farcaster = FarcasterGrazer(api_key=farcaster_api_key, timeout=timeout)
+        self._semantic_scholar = SemanticScholarGrazer(api_key=semantic_scholar_api_key, timeout=timeout)
+        self._openreview = OpenReviewGrazer(timeout=timeout)
+        self._mastodon = MastodonGrazer(timeout=timeout)
+        self._nostr = NostrGrazer(timeout=timeout)
         self.llm_url = llm_url
         self.llm_model = llm_model
         self.llm_api_key = llm_api_key
@@ -1246,6 +1268,112 @@ class GrazerClient:
         return self._podcast.episodes(feed_url, limit=limit)
 
     # ───────────────────────────────────────────────────────────
+    # Bluesky
+    # ───────────────────────────────────────────────────────────
+
+    def discover_bluesky(
+        self,
+        query: str = "AI agents",
+        limit: int = 10,
+    ) -> List[Dict]:
+        """Search Bluesky posts via AT Protocol."""
+        return self._bluesky.discover(query=query, limit=limit)
+
+    def bluesky_timeline(self, actor: str, limit: int = 10) -> List[Dict]:
+        """Get a Bluesky actor's public feed."""
+        return self._bluesky.timeline(actor=actor, limit=limit)
+
+    # ───────────────────────────────────────────────────────────
+    # Farcaster
+    # ───────────────────────────────────────────────────────────
+
+    def discover_farcaster(
+        self,
+        query: str = "AI agents",
+        limit: int = 10,
+    ) -> List[Dict]:
+        """Search Farcaster casts via Neynar API."""
+        return self._farcaster.discover(query=query, limit=limit)
+
+    def farcaster_trending(self, limit: int = 10) -> List[Dict]:
+        """Get trending Farcaster casts."""
+        return self._farcaster.trending(limit=limit)
+
+    # ───────────────────────────────────────────────────────────
+    # Semantic Scholar
+    # ───────────────────────────────────────────────────────────
+
+    def discover_semantic_scholar(
+        self,
+        query: str = "large language models",
+        limit: int = 10,
+    ) -> List[Dict]:
+        """Search academic papers on Semantic Scholar."""
+        return self._semantic_scholar.discover(query=query, limit=limit)
+
+    def semantic_scholar_paper(self, paper_id: str) -> Optional[Dict]:
+        """Get a paper by Semantic Scholar ID, DOI, or arXiv ID."""
+        return self._semantic_scholar.get_paper(paper_id)
+
+    def semantic_scholar_author(self, author_id: str, limit: int = 10) -> Optional[Dict]:
+        """Get a Semantic Scholar author profile with papers."""
+        return self._semantic_scholar.get_author(author_id, limit=limit)
+
+    # ───────────────────────────────────────────────────────────
+    # OpenReview
+    # ───────────────────────────────────────────────────────────
+
+    def discover_openreview(
+        self,
+        query: str = "large language models",
+        venue: Optional[str] = None,
+        limit: int = 10,
+    ) -> List[Dict]:
+        """Search OpenReview conference papers."""
+        return self._openreview.discover(query=query, venue=venue, limit=limit)
+
+    def openreview_venue(self, venue_id: str, limit: int = 10) -> List[Dict]:
+        """Get submissions for an OpenReview venue."""
+        return self._openreview.venue_submissions(venue_id, limit=limit)
+
+    # ───────────────────────────────────────────────────────────
+    # Mastodon
+    # ───────────────────────────────────────────────────────────
+
+    def discover_mastodon(
+        self,
+        query: str = "AI",
+        instance: Optional[str] = None,
+        limit: int = 10,
+    ) -> List[Dict]:
+        """Search public Mastodon posts."""
+        return self._mastodon.discover(query=query, instance=instance, limit=limit)
+
+    def mastodon_trending(self, instance: Optional[str] = None, limit: int = 10) -> List[Dict]:
+        """Get trending posts on a Mastodon instance."""
+        return self._mastodon.trending_posts(instance=instance, limit=limit)
+
+    def mastodon_timeline(self, instance: Optional[str] = None, limit: int = 10) -> List[Dict]:
+        """Get the public timeline of a Mastodon instance."""
+        return self._mastodon.public_timeline(instance=instance, limit=limit)
+
+    # ───────────────────────────────────────────────────────────
+    # Nostr
+    # ───────────────────────────────────────────────────────────
+
+    def discover_nostr(
+        self,
+        query: str = "AI",
+        limit: int = 10,
+    ) -> List[Dict]:
+        """Search Nostr events via nostr.band."""
+        return self._nostr.discover(query=query, limit=limit)
+
+    def nostr_trending(self, limit: int = 10) -> List[Dict]:
+        """Get trending Nostr notes."""
+        return self._nostr.trending(limit=limit)
+
+    # ───────────────────────────────────────────────────────────
     # Cross-Platform
     # ───────────────────────────────────────────────────────────
 
@@ -1274,6 +1402,12 @@ class GrazerClient:
             "arxiv": [],
             "youtube": [],
             "podcasts": [],
+            "bluesky": [],
+            "farcaster": [],
+            "semantic_scholar": [],
+            "openreview": [],
+            "mastodon": [],
+            "nostr": [],
             "_errors": {},
         }
 
@@ -1294,6 +1428,12 @@ class GrazerClient:
             ("arxiv",         lambda: self.discover_arxiv(limit=limit)),
             ("youtube",       lambda: self.discover_youtube(limit=limit)),
             ("podcasts",      lambda: self.discover_podcasts(limit=limit)),
+            ("bluesky",       lambda: self.discover_bluesky(limit=limit)),
+            ("farcaster",     lambda: self.discover_farcaster(limit=limit)),
+            ("semantic_scholar", lambda: self.discover_semantic_scholar(limit=limit)),
+            ("openreview",    lambda: self.discover_openreview(limit=limit)),
+            ("mastodon",      lambda: self.discover_mastodon(limit=limit)),
+            ("nostr",         lambda: self.discover_nostr(limit=limit)),
         ]
 
         for name, fn in calls:
