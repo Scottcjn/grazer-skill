@@ -28,6 +28,11 @@ export interface ConversationThread {
 export class NotificationMonitor {
   private lastChecked: Map<string, number> = new Map();
   private seenNotifications: Set<string> = new Set();
+  private agentName: string;
+
+  constructor(agentName: string = '') {
+    this.agentName = agentName;
+  }
 
   /**
    * Check for new notifications across platforms
@@ -90,23 +95,193 @@ export class NotificationMonitor {
   }
 
   private async checkBottubeComments(client: any): Promise<Notification[]> {
-    // TODO: Implement BoTTube notification API
-    return [];
+    const notifications: Notification[] = [];
+    const baseUrl = typeof client === 'string' ? client : 'https://bottube.ai';
+    const lastCheck = this.lastChecked.get('bottube') || 0;
+
+    // Fetch trending/recent videos for new content notifications
+    try {
+      const trendingResp = await fetch(`${baseUrl}/api/trending?limit=10`);
+      if (trendingResp.ok) {
+        const videos = await trendingResp.json();
+        for (const video of (Array.isArray(videos) ? videos : videos.videos || [])) {
+          const createdTs = new Date(video.created_at || video.uploaded_at || 0).getTime();
+          if (createdTs > lastCheck) {
+            notifications.push({
+              id: `bottube-video-${video.id}`,
+              platform: 'bottube',
+              type: 'mention',
+              from_user: video.agent || video.uploader || 'unknown',
+              content: video.title || 'New video',
+              target_post_id: String(video.id),
+              timestamp: createdTs,
+              read: false,
+            });
+          }
+        }
+      }
+    } catch (err) {
+      // Trending endpoint may not exist, continue
+    }
+
+    // Fetch comments on the agent's own videos
+    if (this.agentName) {
+      try {
+        const videosResp = await fetch(
+          `${baseUrl}/api/videos?agent=${encodeURIComponent(this.agentName)}&limit=10`
+        );
+        if (videosResp.ok) {
+          const agentVideos = await videosResp.json();
+          const videoList = Array.isArray(agentVideos) ? agentVideos : agentVideos.videos || [];
+          for (const video of videoList) {
+            try {
+              const commentsResp = await fetch(
+                `${baseUrl}/api/videos/${video.id}/comments`
+              );
+              if (commentsResp.ok) {
+                const comments = await commentsResp.json();
+                const commentList = Array.isArray(comments) ? comments : comments.comments || [];
+                for (const comment of commentList) {
+                  const commentTs = new Date(comment.created_at || 0).getTime();
+                  if (commentTs > lastCheck) {
+                    notifications.push({
+                      id: `bottube-comment-${comment.id || `${video.id}-${commentTs}`}`,
+                      platform: 'bottube',
+                      type: 'comment',
+                      from_user: comment.author || comment.user || 'anonymous',
+                      content: comment.text || comment.content || comment.body || '',
+                      target_post_id: String(video.id),
+                      timestamp: commentTs,
+                      read: false,
+                    });
+                  }
+                }
+              }
+            } catch (_) {
+              // Skip individual comment fetch failures
+            }
+          }
+        }
+      } catch (err) {
+        // Videos endpoint failure - non-fatal
+      }
+    }
+
+    this.lastChecked.set('bottube', Date.now());
+    return notifications;
   }
 
   private async checkMoltbookReplies(client: any): Promise<Notification[]> {
-    // TODO: Implement Moltbook notification API
-    return [];
+    const notifications: Notification[] = [];
+    const baseUrl = typeof client === 'string' ? client : 'https://www.moltbook.com';
+    const lastCheck = this.lastChecked.get('moltbook') || 0;
+
+    if (this.agentName) {
+      try {
+        const resp = await fetch(
+          `${baseUrl}/api/v1/users/${encodeURIComponent(this.agentName)}/replies?limit=10`
+        );
+        if (resp.ok) {
+          const replies = await resp.json();
+          const replyList = Array.isArray(replies) ? replies : replies.replies || [];
+          for (const reply of replyList) {
+            const replyTs = new Date(reply.created_at || 0).getTime();
+            if (replyTs > lastCheck) {
+              notifications.push({
+                id: `moltbook-reply-${reply.id}`,
+                platform: 'moltbook',
+                type: 'reply',
+                from_user: reply.author || reply.username || 'unknown',
+                content: reply.content || reply.body || '',
+                target_post_id: String(reply.post_id || reply.parent_id || ''),
+                timestamp: replyTs,
+                read: false,
+              });
+            }
+          }
+        }
+      } catch (err) {
+        // Non-fatal
+      }
+    }
+
+    this.lastChecked.set('moltbook', Date.now());
+    return notifications;
   }
 
   private async checkClawCitiesGuestbook(client: any): Promise<Notification[]> {
-    // TODO: Implement ClawCities notification API
-    return [];
+    const notifications: Notification[] = [];
+    const baseUrl = typeof client === 'string' ? client : 'https://clawcities.com';
+    const lastCheck = this.lastChecked.get('clawcities') || 0;
+
+    if (this.agentName) {
+      try {
+        const resp = await fetch(
+          `${baseUrl}/api/sites/${encodeURIComponent(this.agentName)}/guestbook?limit=10`
+        );
+        if (resp.ok) {
+          const entries = await resp.json();
+          const entryList = Array.isArray(entries) ? entries : entries.entries || [];
+          for (const entry of entryList) {
+            const entryTs = new Date(entry.created_at || 0).getTime();
+            if (entryTs > lastCheck) {
+              notifications.push({
+                id: `clawcities-gb-${entry.id}`,
+                platform: 'clawcities',
+                type: 'comment',
+                from_user: entry.author || entry.visitor || 'anonymous',
+                content: entry.message || entry.content || '',
+                timestamp: entryTs,
+                read: false,
+              });
+            }
+          }
+        }
+      } catch (err) {
+        // Non-fatal
+      }
+    }
+
+    this.lastChecked.set('clawcities', Date.now());
+    return notifications;
   }
 
   private async checkClawstaMentions(client: any): Promise<Notification[]> {
-    // TODO: Implement Clawsta notification API
-    return [];
+    const notifications: Notification[] = [];
+    const baseUrl = typeof client === 'string' ? client : 'https://clawsta.com';
+    const lastCheck = this.lastChecked.get('clawsta') || 0;
+
+    if (this.agentName) {
+      try {
+        const resp = await fetch(
+          `${baseUrl}/api/notifications?username=${encodeURIComponent(this.agentName)}&limit=10`
+        );
+        if (resp.ok) {
+          const data = await resp.json();
+          const mentions = Array.isArray(data) ? data : data.notifications || [];
+          for (const mention of mentions) {
+            const mentionTs = new Date(mention.created_at || 0).getTime();
+            if (mentionTs > lastCheck) {
+              notifications.push({
+                id: `clawsta-mention-${mention.id}`,
+                platform: 'clawsta',
+                type: 'mention',
+                from_user: mention.from_user || mention.author || 'unknown',
+                content: mention.content || mention.text || '',
+                target_post_id: String(mention.post_id || ''),
+                timestamp: mentionTs,
+                read: false,
+              });
+            }
+          }
+        }
+      } catch (err) {
+        // Non-fatal
+      }
+    }
+
+    this.lastChecked.set('clawsta', Date.now());
+    return notifications;
   }
 
   /**
