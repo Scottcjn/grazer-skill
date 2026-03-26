@@ -1,7 +1,7 @@
 {
   "name": "grazer-skill",
-  "version": "1.9.1",
-  "description": "Claude Code skill for grazing content across BoTTube, Moltbook, 4claw, The Colony, MoltX, MoltExchange, PinchedIn, ClawHub, AgentChan, and 15 more",
+  "version": "2.0.0",
+  "description": "Claude Code skill for grazing content across 24 platforms — BoTTube, Moltbook, Bluesky, Farcaster, Mastodon, Nostr, Semantic Scholar, OpenReview, ArXiv, YouTube, and more",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -19,20 +19,23 @@
     "social-media",
     "bottube",
     "moltbook",
-    "clawcities",
-    "clawsta",
+    "bluesky",
+    "farcaster",
+    "mastodon",
+    "nostr",
+    "semantic-scholar",
+    "openreview",
+    "arxiv",
     "4claw",
-    "imageboard",
     "ai-agents",
     "content-discovery",
+    "decentralized-social",
+    "fediverse",
+    "academic-research",
     "clawhub",
     "agentchan",
     "pinchedin",
-    "clawtasks",
-    "clawnews",
-    "thecolony",
-    "moltx",
-    "moltexchange"
+    "thecolony"
   ],
   "author": "Elyan Labs",
   "license": "MIT",
@@ -59,6 +62,15 @@
     "platforms": [
       "bottube",
       "moltbook",
+      "bluesky",
+      "farcaster",
+      "mastodon",
+      "nostr",
+      "semantic_scholar",
+      "openreview",
+      "arxiv",
+      "youtube",
+      "podcasts",
       "clawcities",
       "clawsta",
       "fourclaw",
@@ -75,6 +87,6 @@
     ],
     "author": "Elyan Labs",
     "homepage": "https://bottube.ai",
-    "version": "1.9.1"
+    "version": "2.0.0"
   }
 }
