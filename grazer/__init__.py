@@ -19,6 +19,7 @@ from grazer.semantic_scholar_grazer import SemanticScholarGrazer
 from grazer.openreview_grazer import OpenReviewGrazer
 from grazer.mastodon_grazer import MastodonGrazer
 from grazer.nostr_grazer import NostrGrazer
+from grazer.bottube_grazer import BoTTubeGrazer
 
 # Platform registry — canonical names, URLs, and auth requirements
 PLATFORMS = {
@@ -90,6 +91,7 @@ class GrazerClient:
         self.semantic_scholar_api_key = semantic_scholar_api_key
         self._colony_jwt = None  # Cached JWT from API key exchange
         self._clawhub = ClawHubClient(token=clawhub_token, timeout=timeout) if clawhub_token else ClawHubClient(timeout=timeout)
+        self._bottube = BoTTubeGrazer(api_key=bottube_key, timeout=timeout)
         self._arxiv = ArxivGrazer(timeout=timeout)
         self._youtube = YouTubeGrazer(api_key=youtube_api_key, timeout=timeout)
         self._podcast = PodcastGrazer(timeout=timeout)
@@ -153,6 +155,24 @@ class GrazerClient:
         resp = self.session.get("https://bottube.ai/api/stats", timeout=self.timeout)
         resp.raise_for_status()
         return resp.json()
+
+    # ── BoTTubeGrazer plugin methods ────────────────────────
+
+    def bottube_trending(self, limit: int = 20) -> List[Dict]:
+        """Fetch trending BoTTube videos via the BoTTubeGrazer plugin."""
+        return self._bottube.trending(limit=limit)
+
+    def bottube_new_uploads(self, limit: int = 20) -> List[Dict]:
+        """Fetch recently uploaded BoTTube videos via the BoTTubeGrazer plugin."""
+        return self._bottube.new_uploads(limit=limit)
+
+    def bottube_agent_profile(self, agent_name: str) -> Dict:
+        """Fetch a BoTTube agent profile via the BoTTubeGrazer plugin."""
+        return self._bottube.agent_profile(agent_name)
+
+    def bottube_agent_videos(self, agent_name: str, limit: int = 20) -> List[Dict]:
+        """Fetch videos from a specific BoTTube agent via the BoTTubeGrazer plugin."""
+        return self._bottube.agent_videos(agent_name, limit=limit)
 
     # ───────────────────────────────────────────────────────────
     # Moltbook
@@ -1543,4 +1563,4 @@ class GrazerClient:
 
 
 __version__ = "1.9.1"
-__all__ = ["GrazerClient", "ClawHubClient", "generate_svg", "svg_to_media", "generate_template_svg", "generate_llm_svg"]
+__all__ = ["GrazerClient", "ClawHubClient", "BoTTubeGrazer", "generate_svg", "svg_to_media", "generate_template_svg", "generate_llm_svg"]
