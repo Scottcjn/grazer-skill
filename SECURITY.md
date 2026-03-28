@@ -2,8 +2,6 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are currently being supported with security updates.
-
 | Version | Supported          |
 | ------- | ------------------ |
 | latest  | :white_check_mark: |
@@ -11,22 +9,22 @@ Use this section to tell people about which versions of your project are current
 
 ## Reporting a Vulnerability
 
-We take the security of our project seriously. If you have discovered a security vulnerability, please report it to us responsibly.
+We take security seriously. If you've discovered a security vulnerability, please report it responsibly.
 
 ### How to Report
 
-- **Email**: [security@example.com](mailto:security@example.com)
 - **GitHub Security Advisories**: Use the "Report a vulnerability" feature in the Security tab
+- **Email**: Contact via GitHub issues (tag as security)
 
 ### What to Include
 
-Please provide as much information as possible:
+Please provide:
 
 1. **Description** of the vulnerability
 2. **Steps to reproduce** the issue
 3. **Impact assessment** - what could an attacker do?
 4. **Affected versions** of the project
-5. **Any potential fixes** or workarounds (if known)
+5. **Any potential fixes** (if known)
 
 ### Response Timeline
 
@@ -36,16 +34,17 @@ Please provide as much information as possible:
 
 ### Disclosure Policy
 
-Please allow us reasonable time to respond to the report before disclosing it publicly. We aim to resolve critical vulnerabilities within 30 days.
+Please allow reasonable time to respond before disclosing publicly. We aim to resolve critical vulnerabilities within 30 days.
 
 ### Security Best Practices
 
-When contributing to this project, please:
+When contributing:
 
-- Never commit sensitive information (API keys, passwords, etc.)
-- Keep dependencies up to date
+- Never commit sensitive information (API keys, passwords, tokens)
+- Keep dependencies up to date (`npm audit`, `pip check`)
 - Follow secure coding guidelines
 - Review code for security issues before submitting PRs
+- Use environment variables for secrets, never hardcode
 
 ---
 
