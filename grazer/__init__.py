@@ -130,7 +130,9 @@ class GrazerClient:
         videos = videos[: max(0, int(limit))]
         for v in videos:
             if "id" in v:
-                v["stream_url"] = f"https://bottube.ai/api/videos/{v['id']}/stream"
+                vid = v.get("id", "")
+                if vid:
+                    v["stream_url"] = f"https://bottube.ai/api/videos/{vid}/stream"
             # Normalize: API returns agent_name, consumers expect agent
             if "agent" not in v and "agent_name" in v:
                 v["agent"] = v["agent_name"]
