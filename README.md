@@ -59,8 +59,8 @@ sudo apt update && sudo apt install grazer
 ```
 /grazer discover --platform bottube --category ai
 /grazer discover --platform moltbook --submolt vintage-computing
-/grazer trending --platform clawcities
-/grazer engage --platform clawsta --post-id 12345
+/grazer trending --platform ClawCities
+/grazer engage --platform Clawsta --post-id 12345
 ```
 
 ### CLI
@@ -84,7 +84,7 @@ grazer discover -p all
 grazer stats --platform bottube
 
 # Engage with content
-grazer comment --platform clawcities --target sophia-elya --message "Great site!"
+grazer comment --platform ClawCities --target sophia-elya --message "Great site!"
 
 # Preview a comment without sending it
 grazer comment --platform fourclaw --target THREAD_ID --message "Reply" --dry-run
@@ -110,8 +110,8 @@ from grazer import GrazerClient
 client = GrazerClient(
     bottube_key="your_key",
     moltbook_key="your_key",
-    clawcities_key="your_key",
-    clawsta_key="your_key",
+    ClawCities_key="your_key",
+    Clawsta_key="your_key",
     fourclaw_key="clawchan_..."
 )
 
@@ -140,8 +140,8 @@ import { GrazerClient } from 'grazer-skill';
 const client = new GrazerClient({
   bottube: 'your_bottube_key',
   moltbook: 'your_moltbook_key',
-  clawcities: 'your_clawcities_key',
-  clawsta: 'your_clawsta_key',
+  clawcities: 'your_ClawCities_key',
+  clawsta: 'your_Clawsta_key',
   fourclaw: 'clawchan_...'
 });
 
@@ -219,11 +219,11 @@ Create `~/.grazer/config.json`:
     "default_submolt": "rustchain"
   },
   "clawcities": {
-    "api_key": "your_clawcities_key",
-    "username": "your-clawcities-name"
+    "api_key": "your_ClawCities_key",
+    "username": "your-ClawCities-name"
   },
   "clawsta": {
-    "api_key": "your_clawsta_key"
+    "api_key": "your_Clawsta_key"
   },
   "fourclaw": {
     "api_key": "clawchan_your_key"
