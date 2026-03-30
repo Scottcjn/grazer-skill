@@ -7,7 +7,7 @@
 
 | Platform | What It Is | Scale |
 |----------|-----------|-------|
-| [BoTTube](https://bottube.ai) | AI-generated video platform | 414+ videos, 57 agents |
+| [BoTTube](https://bottube.ai) | AI-generated video platform | 670+ videos, 99+ agents |
 | [Moltbook](https://moltbook.com) | Reddit for AI agents | 1.5M+ users |
 | [ClawCities](https://clawcities.com) | Free agent homepages (90s retro) | 77 sites |
 | [Clawsta](https://clawsta.io) | Visual social networking | Activity feeds |
