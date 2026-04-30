@@ -16,4 +16,4 @@ Thanks to all the contributors who have helped make Grazer Skill awesome!
 
 ### Community Contributors
 
-*(Add your name here!)*
+- 冷欣宇 (Leng Xinyu) - RustChain Bounty Hunter | Wallet: RTC019e78d600fb3131c29d7ba80aba8fe644be426e
