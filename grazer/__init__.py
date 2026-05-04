@@ -4,6 +4,7 @@ PyPI package for Python integration
 """
 
 import requests
+import threading
 import time as _time
 from typing import List, Dict, Optional
 from datetime import datetime
@@ -45,6 +46,70 @@ PLATFORMS = {
     "mastodon":     {"url": "https://mastodon.social/api/v1/",         "auth": False},
     "nostr":        {"url": "https://api.nostr.band/",                 "auth": False},
 }
+
+
+class ThreadSafeRateLimiter:
+    """Thread-safe rate limiter using sliding window algorithm.
+    
+    Prevents race conditions when multiple threads make concurrent requests.
+    Uses threading.Condition so threads deterministically queue and wake
+    without the lock-release-then-sleep concurrency hole.
+    """
+    
+    def __init__(self, max_requests: int = 60, window_seconds: float = 60.0):
+        """Initialize rate limiter.
+        
+        Args:
+            max_requests: Maximum requests allowed in the time window.
+            window_seconds: Time window in seconds.
+        """
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self._condition = threading.Condition()
+        self._requests: List[float] = []  # Timestamps of recent requests
+    
+    def _prune(self, now: float) -> None:
+        """Remove timestamps outside the current window. Must hold self._condition."""
+        self._requests = [t for t in self._requests if now - t < self.window_seconds]
+    
+    def acquire(self) -> None:
+        """Acquire permission to make a request. Blocks if rate limit exceeded.
+        
+        Uses Condition.wait_for so only one thread at a time progresses past
+        the wait. After recording a request, notify_all() wakes waiting threads
+        so they can re-evaluate availability.
+        """
+        with self._condition:
+            now = _time.time()
+            self._prune(now)
+            
+            # Deterministically compute when a slot will be available.
+            # If we are at capacity, the earliest slot opens when the oldest
+            # timestamp falls outside the window.
+            while len(self._requests) >= self.max_requests:
+                oldest = self._requests[0]
+                wait_until = oldest + self.window_seconds
+                wait_time = wait_until - _time.time()
+                if wait_time > 0:
+                    self._condition.wait(timeout=wait_time)
+                now = _time.time()
+                self._prune(now)
+            
+            # Record this request
+            self._requests.append(_time.time())
+            self._condition.notify_all()
+    
+    def get_stats(self) -> Dict:
+        """Get current rate limiter statistics."""
+        with self._condition:
+            now = _time.time()
+            recent = [t for t in self._requests if now - t < self.window_seconds]
+            return {
+                "requests_in_window": len(recent),
+                "max_requests": self.max_requests,
+                "window_seconds": self.window_seconds,
+                "available": max(0, self.max_requests - len(recent)),
+            }
 
 
 class GrazerClient:
@@ -107,6 +172,48 @@ class GrazerClient:
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": f"Grazer/{__version__} (Elyan Labs)"})
+        
+        # Thread-safe rate limiter (60 requests per 60 seconds)
+        self._rate_limiter = ThreadSafeRateLimiter(max_requests=60, window_seconds=60.0)
+    
+    def _rate_limited_get(self, url: str, **kwargs) -> requests.Response:
+        """Make a GET request with thread-safe rate limiting.
+        
+        Args:
+            url: Request URL
+            **kwargs: Additional arguments passed to requests.get()
+            
+        Returns:
+            requests.Response object
+        """
+        self._rate_limiter.acquire()
+        return self.session.get(url, **kwargs)
+    
+    def _rate_limited_post(self, url: str, **kwargs) -> requests.Response:
+        """Make a POST request with thread-safe rate limiting.
+        
+        Args:
+            url: Request URL
+            **kwargs: Additional arguments passed to requests.post()
+            
+        Returns:
+            requests.Response object
+        """
+        self._rate_limiter.acquire()
+        return self.session.post(url, **kwargs)
+    
+    def _rate_limited_patch(self, url: str, **kwargs) -> requests.Response:
+        """Make a PATCH request with thread-safe rate limiting.
+        
+        Args:
+            url: Request URL
+            **kwargs: Additional arguments passed to requests.patch()
+            
+        Returns:
+            requests.Response object
+        """
+        self._rate_limiter.acquire()
+        return self.session.patch(url, **kwargs)
 
     # ───────────────────────────────────────────────────────────
     # BoTTube
@@ -122,7 +229,7 @@ class GrazerClient:
         if agent:
             params["agent"] = agent
 
-        resp = self.session.get(
+        resp = self._rate_limited_get(
             "https://bottube.ai/api/videos", params=params, timeout=self.timeout
         )
         resp.raise_for_status()
@@ -140,7 +247,7 @@ class GrazerClient:
 
     def search_bottube(self, query: str, limit: int = 10) -> List[Dict]:
         """Search BoTTube videos."""
-        resp = self.session.get(
+        resp = self._rate_limited_get(
             "https://bottube.ai/api/videos/search",
             params={"q": query, "limit": limit},
             timeout=self.timeout,
@@ -154,7 +261,7 @@ class GrazerClient:
 
     def get_bottube_stats(self) -> Dict:
         """Get BoTTube platform statistics."""
-        resp = self.session.get("https://bottube.ai/api/stats", timeout=self.timeout)
+        resp = self._rate_limited_get("https://bottube.ai/api/stats", timeout=self.timeout)
         resp.raise_for_status()
         return resp.json()
 
@@ -186,7 +293,7 @@ class GrazerClient:
         if self.moltbook_key:
             headers["Authorization"] = f"Bearer {self.moltbook_key}"
 
-        resp = self.session.get(
+        resp = self._rate_limited_get(
             "https://www.moltbook.com/api/v1/posts",
             params={"submolt": submolt, "limit": limit},
             headers=headers,
@@ -209,7 +316,7 @@ class GrazerClient:
         if not self.moltbook_key:
             raise ValueError("Moltbook API key required")
 
-        resp = self.session.post(
+        resp = self._rate_limited_post(
             "https://www.moltbook.com/api/v1/posts",
             json={"content": content, "title": title, "submolt_name": submolt},
             headers={
@@ -257,7 +364,7 @@ class GrazerClient:
         if not self.clawcities_key:
             raise ValueError("ClawCities API key required")
 
-        resp = self.session.post(
+        resp = self._rate_limited_post(
             f"https://clawcities.com/api/v1/sites/{site_name}/comments",
             json={"body": message},
             headers={
@@ -279,7 +386,7 @@ class GrazerClient:
         if self.clawsta_key:
             headers["Authorization"] = f"Bearer {self.clawsta_key}"
 
-        resp = self.session.get(
+        resp = self._rate_limited_get(
             "https://clawsta.io/v1/posts",
             params={"limit": limit},
             headers=headers,
@@ -304,7 +411,7 @@ class GrazerClient:
         # This keeps backwards compatibility for callers that only passed 'content'.
         image_url = "https://bottube.ai/static/og-banner.png"
 
-        resp = self.session.post(
+        resp = self._rate_limited_post(
             "https://clawsta.io/v1/posts",
             json={"content": content, "imageUrl": image_url},
             headers={
@@ -334,7 +441,7 @@ class GrazerClient:
         if include_content:
             params["includeContent"] = 1
 
-        resp = self.session.get(
+        resp = self._rate_limited_get(
             f"https://www.4claw.org/api/v1/boards/{board}/threads",
             params=params,
             headers=self._fourclaw_headers(),
@@ -345,7 +452,7 @@ class GrazerClient:
 
     def get_fourclaw_boards(self) -> List[Dict]:
         """List all 4claw boards."""
-        resp = self.session.get(
+        resp = self._rate_limited_get(
             "https://www.4claw.org/api/v1/boards",
             headers=self._fourclaw_headers(),
             timeout=self.timeout,
@@ -355,7 +462,7 @@ class GrazerClient:
 
     def get_fourclaw_thread(self, thread_id: str) -> Dict:
         """Get a 4claw thread with all replies."""
-        resp = self.session.get(
+        resp = self._rate_limited_get(
             f"https://www.4claw.org/api/v1/threads/{thread_id}",
             headers=self._fourclaw_headers(),
             timeout=self.timeout,
@@ -422,7 +529,7 @@ class GrazerClient:
             result = self.generate_image(image_prompt, template=template, palette=palette)
             body["media"] = svg_to_media(result["svg"])
 
-        resp = self.session.post(
+        resp = self._rate_limited_post(
             f"https://www.4claw.org/api/v1/boards/{board}/threads",
             json=body,
             headers={
@@ -462,7 +569,7 @@ class GrazerClient:
             result = self.generate_image(image_prompt, template=template, palette=palette)
             body["media"] = svg_to_media(result["svg"])
 
-        resp = self.session.post(
+        resp = self._rate_limited_post(
             f"https://www.4claw.org/api/v1/threads/{thread_id}/replies",
             json=body,
             headers={
@@ -515,7 +622,7 @@ class GrazerClient:
         if query:
             params["q"] = query
         try:
-            resp = self.session.get(
+            resp = self._rate_limited_get(
                 "https://directory.ctxly.app/api/services",
                 params=params,
                 timeout=self.timeout,
@@ -530,7 +637,7 @@ class GrazerClient:
     def directory_categories(self) -> List[Dict]:
         """List all categories in the Agent Directory."""
         try:
-            resp = self.session.get(
+            resp = self._rate_limited_get(
                 "https://directory.ctxly.app/api/categories",
                 timeout=self.timeout,
             )
@@ -542,7 +649,7 @@ class GrazerClient:
     def directory_service(self, slug: str) -> Optional[Dict]:
         """Get details for a specific service by slug."""
         try:
-            resp = self.session.get(
+            resp = self._rate_limited_get(
                 f"https://directory.ctxly.app/api/services/{slug}",
                 timeout=self.timeout,
             )
@@ -559,7 +666,7 @@ class GrazerClient:
         """Discover agents and swarms on SwarmHub."""
         result = {"agents": [], "swarms": []}
         try:
-            resp = self.session.get(
+            resp = self._rate_limited_get(
                 "https://swarmhub.onrender.com/api/v1/agents",
                 timeout=self.timeout,
             )
@@ -569,7 +676,7 @@ class GrazerClient:
         except Exception:
             pass
         try:
-            resp = self.session.get(
+            resp = self._rate_limited_get(
                 "https://swarmhub.onrender.com/api/v1/swarms",
                 timeout=self.timeout,
             )
@@ -593,7 +700,7 @@ class GrazerClient:
     def discover_agentchan(self, board: str = "ai", limit: int = 20) -> List[Dict]:
         """Get threads from an AgentChan board catalog."""
         try:
-            resp = self.session.get(
+            resp = self._rate_limited_get(
                 f"https://chan.alphakek.ai/api/boards/{board}/catalog",
                 timeout=self.timeout,
             )
@@ -607,7 +714,7 @@ class GrazerClient:
     def list_agentchan_boards(self) -> List[Dict]:
         """List all available AgentChan boards."""
         try:
-            resp = self.session.get(
+            resp = self._rate_limited_get(
                 "https://chan.alphakek.ai/api/boards",
                 timeout=self.timeout,
             )
@@ -635,7 +742,7 @@ class GrazerClient:
                 url = f"https://chan.alphakek.ai/api/boards/{board}/threads/{reply_to}/posts"
             else:
                 url = f"https://chan.alphakek.ai/api/boards/{board}/threads"
-            resp = self.session.post(
+            resp = self._rate_limited_post(
                 url,
                 headers=self._agentchan_headers(),
                 json=payload,
@@ -655,7 +762,7 @@ class GrazerClient:
             Dict with 'agent.api_key' — save this immediately, shown only once.
         """
         try:
-            resp = self.session.post(
+            resp = self._rate_limited_post(
                 "https://chan.alphakek.ai/api/register",
                 headers={"Content-Type": "application/json"},
                 json={"label": label},
@@ -676,7 +783,7 @@ class GrazerClient:
 
     def discover_pinchedin(self, limit: int = 20) -> List[Dict]:
         """Discover posts from PinchedIn feed."""
-        resp = self.session.get(
+        resp = self._rate_limited_get(
             "https://www.pinchedin.com/api/feed",
             params={"limit": limit},
             headers=self._pinchedin_headers(),
@@ -687,7 +794,7 @@ class GrazerClient:
 
     def discover_pinchedin_bots(self, limit: int = 20) -> List[Dict]:
         """Discover bots registered on PinchedIn."""
-        resp = self.session.get(
+        resp = self._rate_limited_get(
             "https://www.pinchedin.com/api/bots",
             params={"limit": limit},
             headers=self._pinchedin_headers(),
@@ -698,7 +805,7 @@ class GrazerClient:
 
     def discover_pinchedin_jobs(self, limit: int = 20) -> List[Dict]:
         """Browse job listings on PinchedIn."""
-        resp = self.session.get(
+        resp = self._rate_limited_get(
             "https://www.pinchedin.com/api/jobs",
             params={"limit": limit},
             headers=self._pinchedin_headers(),
@@ -709,7 +816,7 @@ class GrazerClient:
 
     def post_pinchedin(self, content: str) -> Dict:
         """Create a post on PinchedIn (3/day limit)."""
-        resp = self.session.post(
+        resp = self._rate_limited_post(
             "https://www.pinchedin.com/api/posts",
             json={"content": content},
             headers=self._pinchedin_headers(),
@@ -720,7 +827,7 @@ class GrazerClient:
 
     def like_pinchedin(self, post_id: str) -> Dict:
         """Like a PinchedIn post."""
-        resp = self.session.post(
+        resp = self._rate_limited_post(
             f"https://www.pinchedin.com/api/posts/{post_id}/like",
             headers=self._pinchedin_headers(),
             timeout=self.timeout,
@@ -730,7 +837,7 @@ class GrazerClient:
 
     def comment_pinchedin(self, post_id: str, content: str) -> Dict:
         """Comment on a PinchedIn post."""
-        resp = self.session.post(
+        resp = self._rate_limited_post(
             f"https://www.pinchedin.com/api/posts/{post_id}/comment",
             json={"content": content},
             headers=self._pinchedin_headers(),
@@ -741,7 +848,7 @@ class GrazerClient:
 
     def connect_pinchedin(self, target_bot_id: str) -> Dict:
         """Send a connection request (10/day limit)."""
-        resp = self.session.post(
+        resp = self._rate_limited_post(
             "https://www.pinchedin.com/api/connections/request",
             json={"targetBotId": target_bot_id},
             headers=self._pinchedin_headers(),
@@ -758,7 +865,7 @@ class GrazerClient:
             body["requirements"] = requirements
         if compensation:
             body["compensation"] = compensation
-        resp = self.session.post(
+        resp = self._rate_limited_post(
             "https://www.pinchedin.com/api/jobs",
             json=body,
             headers=self._pinchedin_headers(),
@@ -783,7 +890,7 @@ class GrazerClient:
             task_details["compensation"] = compensation
         if task_details:
             body["taskDetails"] = task_details
-        resp = self.session.post(
+        resp = self._rate_limited_post(
             "https://www.pinchedin.com/api/hiring/request",
             json=body,
             headers=self._pinchedin_headers(),
@@ -797,7 +904,7 @@ class GrazerClient:
         params = {}
         if status:
             params["status"] = status
-        resp = self.session.get(
+        resp = self._rate_limited_get(
             "https://www.pinchedin.com/api/hiring/inbox",
             params=params,
             headers=self._pinchedin_headers(),
@@ -809,7 +916,7 @@ class GrazerClient:
 
     def pinchedin_hiring_respond(self, request_id: str, status: str) -> Dict:
         """Respond to a hiring request. Status: accepted, rejected, completed."""
-        resp = self.session.patch(
+        resp = self._rate_limited_patch(
             f"https://www.pinchedin.com/api/hiring/{request_id}",
             json={"status": status},
             headers=self._pinchedin_headers(),
@@ -829,7 +936,7 @@ class GrazerClient:
 
     def discover_clawtasks(self, status: str = "open", limit: int = 20) -> List[Dict]:
         """Browse bounties on ClawTasks. Use clawtasks.com (not www)."""
-        resp = self.session.get(
+        resp = self._rate_limited_get(
             "https://clawtasks.com/api/bounties",
             params={"status": status, "limit": limit},
             headers=self._clawtasks_headers(),
@@ -840,7 +947,7 @@ class GrazerClient:
 
     def get_clawtask(self, bounty_id: str) -> Dict:
         """Get details of a specific bounty."""
-        resp = self.session.get(
+        resp = self._rate_limited_get(
             f"https://clawtasks.com/api/bounties/{bounty_id}",
             headers=self._clawtasks_headers(),
             timeout=self.timeout,
@@ -854,7 +961,7 @@ class GrazerClient:
         body = {"title": title, "description": description, "deadline_hours": deadline_hours}
         if tags:
             body["tags"] = tags
-        resp = self.session.post(
+        resp = self._rate_limited_post(
             "https://clawtasks.com/api/bounties",
             json=body,
             headers=self._clawtasks_headers(),
@@ -875,7 +982,7 @@ class GrazerClient:
     def discover_clawnews(self, limit: int = 20) -> List[Dict]:
         """Discover stories from ClawNews."""
         try:
-            resp = self.session.get(
+            resp = self._rate_limited_get(
                 "https://clawnews.io/api/stories",
                 params={"limit": limit},
                 headers=self._clawnews_headers(),
@@ -894,7 +1001,7 @@ class GrazerClient:
         if tags:
             body["tags"] = tags
         try:
-            resp = self.session.post(
+            resp = self._rate_limited_post(
                 "https://clawnews.io/api/stories",
                 json=body,
                 headers=self._clawnews_headers(),
@@ -914,7 +1021,7 @@ class GrazerClient:
         if not self.thecolony_key:
             raise ValueError("The Colony API key required")
         if not self._colony_jwt:
-            resp = self.session.post(
+            resp = self._rate_limited_post(
                 "https://thecolony.cc/api/v1/auth/token",
                 json={"api_key": self.thecolony_key},
                 timeout=self.timeout,
@@ -929,7 +1036,7 @@ class GrazerClient:
         params = {"limit": limit}
         if colony:
             params["colony"] = colony
-        resp = self.session.get(
+        resp = self._rate_limited_get(
             "https://thecolony.cc/api/v1/posts",
             params=params,
             headers=headers,
@@ -948,7 +1055,7 @@ class GrazerClient:
     def list_colonies(self) -> List[Dict]:
         """List all available colonies."""
         headers = self._colony_auth() if self.thecolony_key else {}
-        resp = self.session.get(
+        resp = self._rate_limited_get(
             "https://thecolony.cc/api/v1/colonies",
             headers=headers,
             timeout=self.timeout,
@@ -966,7 +1073,7 @@ class GrazerClient:
             post_type: One of: finding, question, analysis, human_request, discussion
         """
         headers = self._colony_auth()
-        resp = self.session.post(
+        resp = self._rate_limited_post(
             f"https://thecolony.cc/api/v1/colonies/{colony}/posts",
             json={"content": content, "type": post_type},
             headers=headers,
@@ -978,7 +1085,7 @@ class GrazerClient:
     def reply_colony(self, post_id: str, content: str) -> Dict:
         """Reply to a Colony post."""
         headers = self._colony_auth()
-        resp = self.session.post(
+        resp = self._rate_limited_post(
             f"https://thecolony.cc/api/v1/posts/{post_id}/replies",
             json={"content": content},
             headers=headers,
@@ -1000,7 +1107,7 @@ class GrazerClient:
         """Discover posts from MoltX."""
         headers = self._moltx_headers() if self.moltx_key else {}
         try:
-            resp = self.session.get(
+            resp = self._rate_limited_get(
                 "https://moltx.io/v1/posts",
                 params={"limit": limit},
                 headers=headers,
@@ -1029,7 +1136,7 @@ class GrazerClient:
         """Discover trending agents on MoltX."""
         headers = self._moltx_headers() if self.moltx_key else {}
         try:
-            resp = self.session.get(
+            resp = self._rate_limited_get(
                 "https://moltx.io/v1/agents/trending",
                 params={"limit": limit},
                 headers=headers,
@@ -1050,7 +1157,7 @@ class GrazerClient:
 
     def post_moltx(self, content: str) -> Dict:
         """Post to MoltX (requires EVM wallet verification)."""
-        resp = self.session.post(
+        resp = self._rate_limited_post(
             "https://moltx.io/v1/posts",
             json={"content": content},
             headers=self._moltx_headers(),
@@ -1072,7 +1179,7 @@ class GrazerClient:
         """Discover questions from MoltExchange."""
         headers = self._moltexchange_headers() if self.moltexchange_key else {}
         try:
-            resp = self.session.get(
+            resp = self._rate_limited_get(
                 "https://moltexchange.ai/v1/questions",
                 params={"limit": limit},
                 headers=headers,
@@ -1095,7 +1202,7 @@ class GrazerClient:
         """Discover trending topics on MoltExchange."""
         headers = self._moltexchange_headers() if self.moltexchange_key else {}
         try:
-            resp = self.session.get(
+            resp = self._rate_limited_get(
                 "https://moltexchange.ai/v1/trending",
                 params={"limit": limit},
                 headers=headers,
@@ -1119,7 +1226,7 @@ class GrazerClient:
         payload = {"title": title, "body": body}
         if tags:
             payload["tags"] = tags
-        resp = self.session.post(
+        resp = self._rate_limited_post(
             "https://moltexchange.ai/v1/questions",
             json=payload,
             headers=self._moltexchange_headers(),
@@ -1130,7 +1237,7 @@ class GrazerClient:
 
     def answer_moltexchange(self, question_id: str, body: str) -> Dict:
         """Answer a question on MoltExchange."""
-        resp = self.session.post(
+        resp = self._rate_limited_post(
             f"https://moltexchange.ai/v1/questions/{question_id}/answers",
             json={"body": body},
             headers=self._moltexchange_headers(),
@@ -1172,7 +1279,7 @@ class GrazerClient:
 
             t0 = _time.monotonic()
             try:
-                resp = self.session.get(url, headers=headers, timeout=min(self.timeout, 8), params={"limit": 1})
+                resp = self._rate_limited_get(url, headers=headers, timeout=min(self.timeout, 8), params={"limit": 1})
                 latency = (_time.monotonic() - t0) * 1000
                 results[name] = {
                     "ok": resp.status_code < 500,
@@ -1507,7 +1614,7 @@ class GrazerClient:
             payload["seo_description"] = seo_description
 
         try:
-            resp = self.session.post(
+            resp = self._rate_limited_post(
                 f"{relay_host}/relay/heartbeat/seo",
                 json=payload,
                 headers={"Authorization": f"Bearer {relay_token}"},
@@ -1536,7 +1643,7 @@ class GrazerClient:
         """
         ext = {"json": ".json", "xml": ".xml", "html": ""}.get(format, ".json")
         try:
-            resp = self.session.get(
+            resp = self._rate_limited_get(
                 f"{relay_host}/beacon/agent/{agent_id}{ext}",
                 timeout=self.timeout,
             )
@@ -1549,7 +1656,7 @@ class GrazerClient:
     def report_download(self, platform: str, version: str):
         """Report download to BoTTube tracking system."""
         try:
-            self.session.post(
+            self._rate_limited_post(
                 "https://bottube.ai/api/downloads/skill",
                 json={
                     "skill": "grazer",
