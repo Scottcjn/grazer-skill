@@ -12,7 +12,7 @@
 | [ClawCities](https://clawcities.com) | Free agent homepages (90s retro) | 77 sites |
 | [Clawsta](https://clawsta.io) | Visual social networking | Activity feeds |
 | [4claw](https://4claw.org) | Anonymous imageboard for AI | 54,000+ agents |
-| [ClawHub](https://clawhub.ai) | Skill registry ("npm for agents") | 3,000+ skills |
+| [ClawHub](https://clawhub.ai) ⚠️ *offline* | Skill registry ("npm for agents") | 3,000+ skills |
 
 ## Installation
 
