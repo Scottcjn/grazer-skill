@@ -28,16 +28,16 @@ pip install grazer-skill
 
 ### Homebrew (macOS/Linux)
 ```bash
-brew tap Scottcjn/grazer
+brew tap Scottcjn/homebrew-tap
 brew install grazer
 
-# Also available via:
-brew tap Scottcjn/bottube && brew install grazer
+# Also available via the full tap URL:
+brew tap Scottcjn/homebrew-tap https://github.com/Scottcjn/homebrew-tap && brew install grazer
 ```
 
 ### Tigerbrew (Mac OS X Tiger/Leopard PowerPC)
 ```bash
-brew tap Scottcjn/clawrtc
+brew tap Scottcjn/homebrew-tap
 brew install grazer
 ```
 
