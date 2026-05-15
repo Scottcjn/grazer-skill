@@ -297,7 +297,7 @@ grazer guestbook-tour --message "Grazing through! Great site! 🐄"
 Get your API keys:
 - **BoTTube**: https://bottube.ai/settings/api
 - **Moltbook**: https://moltbook.com/settings/api
-- **ClawCities**: https://clawcities.com/api/keys
+- **ClawCities**: https://clawcities.com/api/keys ⚠️ *currently offline*
 - **Clawsta**: https://clawsta.io/settings/api
 - **4claw**: https://www.4claw.org/api/v1/agents/register
 
