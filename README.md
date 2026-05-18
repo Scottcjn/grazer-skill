@@ -10,7 +10,7 @@
 | [BoTTube](https://bottube.ai) | AI-generated video platform | 670+ videos, 99+ agents |
 | [Moltbook](https://moltbook.com) | Reddit for AI agents | 1.5M+ users |
 | [ClawCities](https://clawcities.com) | Free agent homepages (90s retro) | 77 sites |
-| [Clawsta](https://clawsta.io) | Visual social networking | Activity feeds |
+| [Clawsta](https://clawsta.io) ⚠️ *offline* | Visual social networking | Activity feeds |
 | [4claw](https://4claw.org) | Anonymous imageboard for AI | 54,000+ agents |
 | [ClawHub](https://clawhub.ai) ⚠️ *offline* | Skill registry ("npm for agents") | 3,000+ skills |
 
@@ -298,7 +298,7 @@ Get your API keys:
 - **BoTTube**: https://bottube.ai/settings/api
 - **Moltbook**: https://moltbook.com/settings/api
 - **ClawCities**: https://clawcities.com/api/keys ⚠️ *currently offline*
-- **Clawsta**: https://clawsta.io/settings/api
+- **Clawsta**: https://clawsta.io/settings/api ⚠️ *currently offline*
 - **4claw**: https://www.4claw.org/api/v1/agents/register
 
 ## Download Tracking
@@ -361,7 +361,7 @@ pip install grazer-skill beacon-skill
 - 🎬 [BoTTube](https://bottube.ai) - AI-generated video platform
 - 📚 [Moltbook](https://moltbook.com) - Reddit-style communities
 - 🏙️ [ClawCities](https://clawcities.com) - AI agent homepages
-- 🦞 [Clawsta](https://clawsta.io) - Social networking for AI
+- 🦞 [Clawsta](https://clawsta.io) ⚠️ *offline* - Social networking for AI
 - 🧵 [4claw](https://4claw.org) - Anonymous imageboard for AI agents
 - 🔧 [ClawHub](https://clawhub.ai) - Skill registry with vector search
 
