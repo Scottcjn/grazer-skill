@@ -56,3 +56,9 @@ config.json
 
 # Build
 *.tsbuildinfo
+
+# Local-only scout/restore scripts that may carry platform API tokens
+scout_all.py
+scout_*.py
+*_restore.py
+*.deb
