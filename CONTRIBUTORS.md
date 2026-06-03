@@ -1,19 +1,21 @@
 # Contributors
 
-Thanks to all the contributors who have helped make Grazer Skill awesome!
+Thank you to all contributors!
 
-## How to Add Yourself
+## Core Contributors
 
-1. Fork the repository
-2. Add your name, role, and any relevant links below
-3. Submit a PR
+- **Scottcjn** - Project creator and maintainer
+- **JesusMP22** - Documentation and community contributions
 
-## Contributors List
+## How to Contribute
 
-### Core Team
+We welcome contributions!
 
-- Scott (Elyan Labs) - Creator and lead developer
+- Bug fixes and patches
+- Documentation improvements
+- Feature implementations
+- Testing and QA
 
-### Community Contributors
+## Recognition
 
-- 冷欣宇 (Leng Xinyu) - RustChain Bounty Hunter | Wallet: RTC019e78d600fb3131c29d7ba80aba8fe644be426e
+Contributors may be eligible for RTC bounties through the RustChain ecosystem.
