@@ -321,9 +321,94 @@ def test_discover_all_includes_new_platforms():
     assert len(result["arxiv"]) == 1
     assert len(result["youtube"]) == 1
     assert len(result["podcasts"]) == 1
+    assert "_health" not in result
+
+
+def test_discover_all_include_health_metadata():
+    """discover_all can include machine-readable platform health metadata."""
+    client = GrazerClient()
+    for method in [
+        "discover_bottube", "discover_moltbook", "discover_clawcities",
+        "discover_clawsta", "discover_fourclaw", "discover_pinchedin",
+        "discover_clawtasks", "discover_clawnews", "discover_directory",
+        "discover_agentchan", "discover_colony", "discover_moltx",
+        "discover_moltexchange", "discover_arxiv", "discover_youtube",
+        "discover_podcasts", "discover_bluesky", "discover_farcaster",
+        "discover_semantic_scholar", "discover_openreview", "discover_mastodon",
+        "discover_nostr",
+    ]:
+        setattr(client, method, Mock(return_value=[]))
+
+    with patch.object(
+        client,
+        "platform_status",
+        return_value={
+            "bottube": {
+                "ok": True,
+                "status_code": 200,
+                "latency_ms": 12.5,
+                "error": None,
+                "auth_configured": False,
+            },
+            "clawsta": {
+                "ok": False,
+                "status_code": 503,
+                "latency_ms": 200.0,
+                "error": "HTTP 503",
+                "auth_configured": False,
+            },
+        },
+    ) as mock_status:
+        result = client.discover_all(limit=5, include_health=True)
+
+    mock_status.assert_called_once()
+    health = result["_health"]
+    assert health["bottube"]["platform"] == "bottube"
+    assert health["bottube"]["status"] == "ok"
+    assert health["bottube"]["http_status"] == 200
+    assert health["bottube"]["fresh"] is True
+    assert health["bottube"]["cached"] is False
+    assert health["bottube"]["last_checked_at"].endswith("Z")
+    assert health["clawsta"]["status"] == "unavailable"
+    assert health["clawsta"]["error_type"] == "http_error"
+    assert health["clawsta"]["http_status"] == 503
 
 
 # ─── CLI Integration ───────────────────────────────────────
+
+
+def test_cli_discover_all_include_health_output():
+    """CLI discover --platform all can show platform health summaries."""
+    mock_client = Mock()
+    mock_client.discover_all.return_value = {
+        "bottube": [],
+        "_errors": {},
+        "_health": {
+            "bottube": {
+                "status": "ok",
+                "fresh": True,
+                "cached": False,
+            }
+        },
+    }
+
+    args = Namespace(
+        platform="all",
+        category=None,
+        submolt="tech",
+        board=None,
+        limit=5,
+        include_health=True,
+    )
+    with patch("grazer.cli.load_config", return_value={}):
+        with patch("grazer.cli._make_client", return_value=mock_client):
+            output = io.StringIO()
+            with redirect_stdout(output):
+                cli.cmd_discover(args)
+
+    text = output.getvalue()
+    mock_client.discover_all.assert_called_once_with(limit=5, include_health=True)
+    assert "BoTTube videos: 0 [ok, fresh]" in text
 
 
 def test_cli_discover_arxiv():

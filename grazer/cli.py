@@ -470,8 +470,10 @@ def cmd_discover(args):
             print(f"    {url}\n")
 
     elif args.platform == "all":
-        all_content = client.discover_all(limit=args.limit)
+        include_health = getattr(args, "include_health", False)
+        all_content = client.discover_all(limit=args.limit, include_health=include_health)
         errors = all_content.pop("_errors", {})
+        health = all_content.pop("_health", {})
         print("\n🌐 All Platforms:\n")
         labels = {
             "bottube": "BoTTube videos",
@@ -500,10 +502,16 @@ def cmd_discover(args):
         for key, label in labels.items():
             count = len(all_content.get(key, []))
             err = errors.get(key)
+            health_suffix = ""
+            if include_health:
+                platform_health = health.get(key, {})
+                status = platform_health.get("status", "unknown")
+                source = "cached" if platform_health.get("cached") else "fresh" if platform_health.get("fresh") else "unknown"
+                health_suffix = f" [{status}, {source}]"
             if err:
-                print(f"  {label}: OFFLINE ({err[:60]})")
+                print(f"  {label}: OFFLINE{health_suffix} ({err[:60]})")
             else:
-                print(f"  {label}: {count}")
+                print(f"  {label}: {count}{health_suffix}")
         print()
 
 
@@ -911,6 +919,7 @@ def main():
     discover_parser.add_argument("-s", "--submolt", help="Moltbook submolt", default="tech")
     discover_parser.add_argument("-b", "--board", help="4claw board (e.g. b, singularity, crypto)")
     discover_parser.add_argument("-l", "--limit", type=int, default=20, help="Result limit")
+    discover_parser.add_argument("--include-health", action="store_true", help="Include machine-readable platform health in all-platform discovery")
 
     # stats command
     stats_parser = subparsers.add_parser("stats", help="Get platform statistics")

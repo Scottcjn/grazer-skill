@@ -7,7 +7,7 @@ import requests
 import threading
 import time as _time
 from typing import List, Dict, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from grazer.imagegen import generate_svg, svg_to_media, generate_template_svg, generate_llm_svg
 from grazer.clawhub import ClawHubClient
@@ -1300,6 +1300,52 @@ class GrazerClient:
 
         return results
 
+    def _discovery_health_entry(self, platform: str, status: Optional[Dict], last_checked_at: str) -> Dict:
+        """Normalize platform_status output for machine-readable discovery results."""
+        status = status or {}
+        error = status.get("error")
+        http_status = status.get("status_code")
+        ok = bool(status.get("ok"))
+
+        if ok and not error:
+            availability = "ok"
+        elif ok:
+            availability = "degraded"
+        elif http_status and http_status >= 500:
+            availability = "unavailable"
+        elif error in {"timeout", "connection_refused"}:
+            availability = "unavailable"
+        elif error == "unknown_platform":
+            availability = "unknown"
+        else:
+            availability = "unavailable" if error else "unknown"
+
+        if not error:
+            error_type = None
+        elif error == "unknown_platform":
+            error_type = "unknown_platform"
+        elif error in {"timeout", "connection_refused"}:
+            error_type = error
+        elif isinstance(error, str) and error.startswith("HTTP "):
+            error_type = "http_error"
+        else:
+            error_type = "exception"
+
+        entry = {
+            "platform": platform,
+            "status": availability,
+            "last_checked_at": last_checked_at,
+            "fresh": True,
+            "cached": False,
+            "error_type": error_type,
+            "auth_configured": bool(status.get("auth_configured")),
+        }
+        if http_status is not None:
+            entry["http_status"] = http_status
+        if "latency_ms" in status:
+            entry["latency_ms"] = status.get("latency_ms")
+        return entry
+
     def _has_auth(self, platform: str) -> bool:
         """Check if authentication is configured for a platform."""
         mapping = {
@@ -1506,13 +1552,14 @@ class GrazerClient:
     # Cross-Platform
     # ───────────────────────────────────────────────────────────
 
-    def discover_all(self, limit: int = 10) -> Dict[str, List[Dict]]:
+    def discover_all(self, limit: int = 10, include_health: bool = False) -> Dict[str, List[Dict]]:
         """Discover content from all platforms.
 
         Returns a dict keyed by platform name. Also includes an ``_errors``
         key mapping platform names to error strings for any platform that
         failed during discovery, so callers can distinguish "no content"
-        from "platform unreachable".
+        from "platform unreachable". When include_health=True, also includes
+        ``_health`` with machine-readable platform status metadata.
         """
         results: Dict = {
             "bottube": [],
@@ -1565,11 +1612,36 @@ class GrazerClient:
             ("nostr",         lambda: self.discover_nostr(limit=limit)),
         ]
 
+        if include_health:
+            platform_names = [name for name, _ in calls]
+            last_checked_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+            try:
+                health = self.platform_status(platform_names)
+            except Exception as exc:
+                health = {
+                    name: {
+                        "ok": False,
+                        "error": str(exc)[:80],
+                        "auth_configured": self._has_auth(name),
+                    }
+                    for name in platform_names
+                }
+            results["_health"] = {
+                name: self._discovery_health_entry(name, health.get(name), last_checked_at)
+                for name in platform_names
+            }
+
         for name, fn in calls:
             try:
                 results[name] = fn()
             except Exception as exc:
                 results["_errors"][name] = str(exc)[:120]
+                if include_health and name in results.get("_health", {}):
+                    health_entry = results["_health"][name]
+                    if health_entry["status"] == "ok":
+                        health_entry["status"] = "degraded"
+                    if not health_entry.get("error_type"):
+                        health_entry["error_type"] = "discovery_error"
 
         return results
 
