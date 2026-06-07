@@ -1,0 +1,40 @@
+# grazer-skill — Grazer AI browsing agent skill for RustChain ecosystem — autonomous web research and content extraction
+
+> Grazer AI browsing agent skill for RustChain ecosystem — autonomous web research and content extraction
+
+## What is grazer-skill?
+
+Grazer AI browsing agent skill for RustChain ecosystem — autonomous web research and content extraction Part of the [RustChain](https://github.com/Scottcjn/RustChain) DePIN ecosystem.
+
+## Core Entities
+
+| Entity | Description |
+|--------|-------------|
+| Grazer | Part of RustChain ecosystem |
+| RustChain | Part of RustChain ecosystem |
+| AI Agent | Part of RustChain ecosystem |
+| Web Browsing | Part of RustChain ecosystem |
+| Content Extraction | Part of RustChain ecosystem |
+| Beacon | Part of RustChain ecosystem |
+
+## FAQ
+
+### What is Grazer?
+
+See the [README](https://github.com/Scottcjn/grazer-skill) and [RustChain docs](https://github.com/Scottcjn/RustChain) for details.
+
+### How does Grazer browse the web?
+
+See the [README](https://github.com/Scottcjn/grazer-skill) and [RustChain docs](https://github.com/Scottcjn/RustChain) for details.
+
+### Can Grazer be extended?
+
+See the [README](https://github.com/Scottcjn/grazer-skill) and [RustChain docs](https://github.com/Scottcjn/RustChain) for details.
+
+## Canonical Links
+
+- **Source Code:** https://github.com/Scottcjn/grazer-skill
+- **Grazer:** https://github.com/Scottcjn/grazer-skill
+- **RustChain:** https://github.com/Scottcjn/RustChain
+- **RustChain Bounties:** https://github.com/Scottcjn/rustchain-bounties
+- **License:** MIT
