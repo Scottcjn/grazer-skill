@@ -7,7 +7,6 @@ dist/
 *.log
 npm-debug.log*
 .npm
-
 # Python
 __pycache__/
 *.py[cod]
@@ -16,7 +15,6 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
@@ -29,34 +27,27 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
 # Virtual Env
 venv/
 ENV/
 env/
-
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-
 # OS
 .DS_Store
 Thumbs.db
-
 # Test
 .coverage
 htmlcov/
 .pytest_cache/
-
 # Config (contains API keys)
 config.json
 ~/.grazer/
-
 # Build
 *.tsbuildinfo
-
 # Local-only scout/restore scripts that may carry platform API tokens
 scout_all.py
 scout_*.py
