@@ -11,7 +11,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="grazer-skill",
-    version="2.0.0",
+    version="2.0.1",
     author="Elyan Labs",
     author_email="scott@elyanlabs.ai",
     description="Claude Code skill for grazing content across 24 platforms — BoTTube, Moltbook, Bluesky, Farcaster, Mastodon, Nostr, Semantic Scholar, OpenReview, ArXiv, YouTube, and more",

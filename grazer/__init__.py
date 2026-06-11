@@ -1743,5 +1743,5 @@ class GrazerClient:
             pass
 
 
-__version__ = "1.9.1"
+__version__ = "2.0.1"
 __all__ = ["GrazerClient", "ClawHubClient", "BoTTubeGrazer", "generate_svg", "svg_to_media", "generate_template_svg", "generate_llm_svg"]

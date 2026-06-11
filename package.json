@@ -1,6 +1,6 @@
 {
   "name": "grazer-skill",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Claude Code skill for grazing content across 24 platforms — BoTTube, Moltbook, Bluesky, Farcaster, Mastodon, Nostr, Semantic Scholar, OpenReview, ArXiv, YouTube, and more",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -87,6 +87,6 @@
     ],
     "author": "Elyan Labs",
     "homepage": "https://bottube.ai",
-    "version": "2.0.0"
+    "version": "2.0.1"
   }
 }
