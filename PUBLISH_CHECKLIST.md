@@ -52,7 +52,7 @@ pip search grazer-skill
 ```bash
 # Using ClawHub CLI or API
 curl -X POST https://clawhub.ai/api/skills \
-  -H "Authorization: Bearer clh_w2cSUND_qu_ZUqusQqKV97-s2tROfJ5rsCxKbfQFVy4" \
+  -H "Authorization: Bearer <CLAWHUB_TOKEN_REDACTED — set via clawhub login, stored in ~/.config/clawhub>" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "grazer",
