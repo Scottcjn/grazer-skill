@@ -486,9 +486,17 @@ def cmd_discover(args):
 
     elif args.platform == "all":
         include_health = getattr(args, "include_health", False)
-        all_content = client.discover_all(limit=args.limit, include_health=include_health)
+        deduplicate = getattr(args, "deduplicate", False)
+        discover_options = {
+            "limit": args.limit,
+            "include_health": include_health,
+        }
+        if deduplicate:
+            discover_options["deduplicate"] = True
+        all_content = client.discover_all(**discover_options)
         errors = all_content.pop("_errors", {})
         health = all_content.pop("_health", {})
+        canonical = all_content.pop("_canonical", [])
         print("\n🌐 All Platforms:\n")
         labels = {
             "bottube": "BoTTube videos",
@@ -527,6 +535,10 @@ def cmd_discover(args):
                 print(f"  {label}: OFFLINE{health_suffix} ({err[:60]})")
             else:
                 print(f"  {label}: {count}{health_suffix}")
+        if deduplicate:
+            observations = sum(len(group.get("variants", [])) for group in canonical)
+            collapsed = max(0, observations - len(canonical))
+            print(f"  Canonical items: {len(canonical)} ({collapsed} duplicate observations collapsed)")
         print()
 
 
@@ -937,6 +949,7 @@ def main():
     discover_parser.add_argument("-b", "--board", help="4claw board (e.g. b, singularity, crypto)")
     discover_parser.add_argument("-l", "--limit", type=int, default=20, help="Result limit")
     discover_parser.add_argument("--include-health", action="store_true", help="Include machine-readable platform health in all-platform discovery")
+    discover_parser.add_argument("--deduplicate", action="store_true", help="Group matching cross-platform observations")
 
     # stats command
     stats_parser = subparsers.add_parser("stats", help="Get platform statistics")

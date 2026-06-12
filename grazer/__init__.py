@@ -3,11 +3,16 @@ Grazer - Multi-Platform Content Discovery for AI Agents
 PyPI package for Python integration
 """
 
-import requests
+import hashlib
+import json
+import re
 import threading
 import time as _time
-from typing import List, Dict, Optional
 from datetime import datetime, timezone
+from typing import Any, List, Dict, Optional
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+import requests
 
 from grazer.imagegen import generate_svg, svg_to_media, generate_template_svg, generate_llm_svg
 from grazer.clawhub import ClawHubClient
@@ -46,6 +51,163 @@ PLATFORMS = {
     "mastodon":     {"url": "https://mastodon.social/api/v1/",         "auth": False},
     "nostr":        {"url": "https://api.nostr.band/",                 "auth": False},
 }
+
+_TRACKING_QUERY_KEYS = {"fbclid", "gclid", "mc_cid", "mc_eid"}
+_URL_FIELDS = (
+    "canonical_url",
+    "source_url",
+    "url",
+    "external_url",
+    "stream_url",
+    "video_url",
+    "feed_url",
+    "pdf_url",
+)
+_CONTENT_FIELDS = (
+    "title",
+    "headline",
+    "name",
+    "subject",
+    "text",
+    "content",
+    "body",
+    "description",
+)
+_CREATOR_FIELDS = (
+    "author_username",
+    "author_name",
+    "author_acct",
+    "author",
+    "creator",
+    "channel",
+    "user",
+    "pubkey",
+)
+_TIMESTAMP_FIELDS = (
+    "published_at",
+    "created_at",
+    "timestamp",
+    "published",
+    "date",
+    "updated_at",
+)
+
+
+def _scalar_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, dict):
+        for key in ("username", "handle", "name", "id"):
+            text = _scalar_text(value.get(key))
+            if text:
+                return text
+        return ""
+    if isinstance(value, (list, tuple)):
+        return " ".join(filter(None, (_scalar_text(item) for item in value)))
+    return str(value).strip()
+
+
+def _normalize_identity_text(value: Any) -> str:
+    text = _scalar_text(value).casefold()
+    return re.sub(r"\W+", " ", text, flags=re.UNICODE).strip()
+
+
+def _normalize_source_url(value: Any) -> str:
+    raw = _scalar_text(value)
+    if not raw:
+        return ""
+
+    try:
+        parts = urlsplit(raw)
+    except ValueError:
+        return ""
+    if parts.scheme.casefold() not in {"http", "https"} or not parts.netloc:
+        return ""
+
+    host = parts.hostname.casefold() if parts.hostname else ""
+    if host.startswith("www."):
+        host = host[4:]
+    try:
+        port = parts.port
+    except ValueError:
+        return ""
+    if port and not (
+        (parts.scheme.casefold() == "http" and port == 80)
+        or (parts.scheme.casefold() == "https" and port == 443)
+    ):
+        host = f"{host}:{port}"
+
+    path = re.sub(r"/+", "/", parts.path or "/")
+    if path != "/":
+        path = path.rstrip("/")
+    query = urlencode(
+        sorted(
+            (key, query_value)
+            for key, query_value in parse_qsl(parts.query, keep_blank_values=True)
+            if not key.casefold().startswith("utm_")
+            and key.casefold() not in _TRACKING_QUERY_KEYS
+        )
+    )
+    return urlunsplit((parts.scheme.casefold(), host, path, query, ""))
+
+
+def _timestamp_bucket(value: Any) -> str:
+    if isinstance(value, (int, float)):
+        try:
+            return datetime.fromtimestamp(value, timezone.utc).date().isoformat()
+        except (OSError, OverflowError, ValueError):
+            return ""
+
+    text = _scalar_text(value)
+    match = re.match(r"^\d{4}-\d{2}-\d{2}", text)
+    return match.group(0) if match else ""
+
+
+def _canonical_source_keys(platform: str, item: Dict) -> List[str]:
+    keys: List[str] = []
+
+    for field in _URL_FIELDS:
+        normalized_url = _normalize_source_url(item.get(field))
+        if normalized_url:
+            digest = hashlib.sha256(normalized_url.encode("utf-8")).hexdigest()[:24]
+            keys.append(f"url:{digest}")
+            break
+
+    content = next(
+        (
+            normalized
+            for field in _CONTENT_FIELDS
+            if (normalized := _normalize_identity_text(item.get(field)))
+        ),
+        "",
+    )
+    creator = next(
+        (
+            normalized
+            for field in _CREATOR_FIELDS
+            if (normalized := _normalize_identity_text(item.get(field)))
+        ),
+        "",
+    )
+    bucket = next(
+        (
+            normalized
+            for field in _TIMESTAMP_FIELDS
+            if (normalized := _timestamp_bucket(item.get(field)))
+        ),
+        "",
+    )
+    if content and (creator or bucket):
+        identity = "\n".join((content, creator, bucket))
+        digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:24]
+        keys.append(f"content:{digest}")
+
+    if not keys:
+        stable_item = json.dumps(item, sort_keys=True, default=str, separators=(",", ":"))
+        digest = hashlib.sha256(stable_item.encode("utf-8")).hexdigest()[:24]
+        keys.append(f"item:{platform}:{digest}")
+
+    return keys
 
 
 class ThreadSafeRateLimiter:
@@ -1552,14 +1714,71 @@ class GrazerClient:
     # Cross-Platform
     # ───────────────────────────────────────────────────────────
 
-    def discover_all(self, limit: int = 10, include_health: bool = False) -> Dict[str, List[Dict]]:
+    @staticmethod
+    def deduplicate_discoveries(results: Dict[str, List[Dict]]) -> List[Dict]:
+        """Group cross-platform observations that share a canonical source."""
+        groups: List[Dict] = []
+        groups_by_key: Dict[str, Dict] = {}
+
+        for platform, items in results.items():
+            if platform.startswith("_") or not isinstance(items, list):
+                continue
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+
+                keys = _canonical_source_keys(platform, item)
+                matching_groups: List[Dict] = []
+                for key in keys:
+                    group = groups_by_key.get(key)
+                    if group is not None and all(
+                        group is not known for known in matching_groups
+                    ):
+                        matching_groups.append(group)
+
+                if matching_groups:
+                    group = matching_groups[0]
+                    for duplicate_group in matching_groups[1:]:
+                        group["variants"].extend(duplicate_group["variants"])
+                        for observed in duplicate_group["observed_platforms"]:
+                            if observed not in group["observed_platforms"]:
+                                group["observed_platforms"].append(observed)
+                        for known_key, known_group in list(groups_by_key.items()):
+                            if known_group is duplicate_group:
+                                groups_by_key[known_key] = group
+                        groups.remove(duplicate_group)
+                else:
+                    group = {
+                        "canonical_key": keys[0],
+                        "canonical": {"platform": platform, "item": item},
+                        "observed_platforms": [],
+                        "variants": [],
+                    }
+                    groups.append(group)
+
+                if platform not in group["observed_platforms"]:
+                    group["observed_platforms"].append(platform)
+                group["variants"].append({"platform": platform, "item": item})
+                for key in keys:
+                    groups_by_key[key] = group
+
+        return groups
+
+    def discover_all(
+        self,
+        limit: int = 10,
+        include_health: bool = False,
+        deduplicate: bool = False,
+    ) -> Dict[str, List[Dict]]:
         """Discover content from all platforms.
 
         Returns a dict keyed by platform name. Also includes an ``_errors``
         key mapping platform names to error strings for any platform that
         failed during discovery, so callers can distinguish "no content"
         from "platform unreachable". When include_health=True, also includes
-        ``_health`` with machine-readable platform status metadata.
+        ``_health`` with machine-readable platform status metadata. When
+        deduplicate=True, ``_canonical`` groups matching observations while
+        preserving every platform variant.
         """
         results: Dict = {
             "bottube": [],
@@ -1642,6 +1861,9 @@ class GrazerClient:
                         health_entry["status"] = "degraded"
                     if not health_entry.get("error_type"):
                         health_entry["error_type"] = "discovery_error"
+
+        if deduplicate:
+            results["_canonical"] = self.deduplicate_discoveries(results)
 
         return results
 
