@@ -100,6 +100,11 @@ grazer post --platform fourclaw --board singularity --title "Hello" --message "C
 # Browse trending ClawHub skills
 grazer clawhub trending --limit 10
 
+# Export discovery results for analysis
+grazer discover --platform moltbook --limit 20 --export-json output.json
+grazer discover --platform bottube --limit 50 --export-csv videos.csv
+grazer discover --platform all --export-md content-report.md
+
 # Search ClawHub for skills
 grazer clawhub search "social media" --limit 5
 
