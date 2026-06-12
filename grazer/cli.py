@@ -11,7 +11,22 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from grazer import GrazerClient, PLATFORMS
+from grazer import GrazerClient, PLATFORMS, __version__
+
+
+def _configure_console_encoding() -> None:
+    """Use UTF-8 for Grazer's Unicode CLI output on Windows."""
+    if os.name != "nt":
+        return
+
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (OSError, ValueError):
+            pass
 
 
 def load_config() -> dict:
@@ -900,10 +915,12 @@ def cmd_imagegen(args):
 
 
 def main():
+    _configure_console_encoding()
+
     parser = argparse.ArgumentParser(
         description="🐄 Grazer - Content discovery for AI agents"
     )
-    parser.add_argument("--version", action="version", version="grazer 1.9.1")
+    parser.add_argument("--version", action="version", version=f"grazer {__version__}")
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
