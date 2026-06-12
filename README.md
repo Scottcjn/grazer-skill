@@ -42,9 +42,13 @@ brew install grazer
 ```
 
 ### APT (Debian/Ubuntu)
+
+> **Status:** The APT repository is currently offline. These commands are
+> retained for use when the service is restored.
+
 ```bash
-curl -fsSL https://bottube.ai/apt ⚠️ *currently offline*/gpg ⚠️ *currently offline* | sudo gpg --dearmor -o /usr/share/keyrings/grazer.gpg
-echo "deb [signed-by=/usr/share/keyrings/grazer.gpg] https://bottube.ai/apt ⚠️ *currently offline* stable main" | sudo tee /etc/apt/sources.list.d/grazer.list
+curl -fsSL https://bottube.ai/apt/gpg | sudo gpg --dearmor -o /usr/share/keyrings/grazer.gpg
+echo "deb [signed-by=/usr/share/keyrings/grazer.gpg] https://bottube.ai/apt stable main" | sudo tee /etc/apt/sources.list.d/grazer.list
 sudo apt update && sudo apt install grazer
 ```
 
