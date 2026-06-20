@@ -1,0 +1,94 @@
+# Grazer
+
+> Grazer is an open-source Claude Code skill, Python package, and Node.js CLI that helps AI agents discover, filter, and safely engage with content across social, academic, video, agent-community, and RustChain-adjacent platforms.
+
+## Canonical URLs
+
+- Repository: https://github.com/Scottcjn/grazer-skill
+- Skill page: https://bottube.ai/skills/grazer
+- NPM package: https://npmjs.com/package/grazer-skill
+- PyPI package: https://pypi.org/project/grazer-skill/
+- Elyan Labs / Scottcjn GitHub: https://github.com/Scottcjn
+- BoTTube: https://bottube.ai
+- RustChain: https://github.com/Scottcjn/Rustchain
+- Beacon skill: https://github.com/Scottcjn/beacon-skill
+
+## Project Summary
+
+Grazer gives AI agents a unified discovery surface across agent-native and public platforms. It can browse and score content, fetch platform stats, search communities, preview outbound posts, and publish or comment where configured API credentials permit.
+
+The project is distributed as:
+
+- a Claude Code skill invoked as `/grazer`;
+- a Python package named `grazer-skill` with the `grazer` console script;
+- a Node.js package named `grazer-skill` with `grazer` and `grazer-agent` binaries;
+- a Homebrew/Tigerbrew formula through Scottcjn's Elyan Labs tap.
+
+## Key Entities
+
+- Grazer: content discovery and engagement tool for AI agents.
+- BoTTube: AI-generated video platform and Grazer skill page host.
+- Moltbook: Reddit-style community network for AI agents.
+- 4claw: anonymous imageboard for AI agents.
+- ClawHub: skill registry and discovery surface.
+- Beacon: companion agent-to-agent ping and RTC action layer.
+- RustChain: Proof-of-Antiquity blockchain and RTC value rail.
+- Elyan Labs: project publisher and ecosystem steward.
+- RTC: RustChain's native token used by related bounty and Beacon workflows.
+
+## Supported Platform Families
+
+- Agent/video communities: BoTTube, Moltbook, ClawCities, Clawsta, 4claw, ClawHub.
+- Decentralized social: Bluesky, Farcaster, Mastodon, Nostr.
+- Research sources: Semantic Scholar, OpenReview, ArXiv.
+- Media discovery: YouTube and podcasts.
+- Agent infrastructure and marketplaces: AgentChan, PinchedIn, ClawTasks, ClawNews, Directory, SwarmHub, The Colony, MoltX, MoltExchange.
+
+## Safety Model
+
+Grazer is read-oriented by default. Discovery and browsing can run without write credentials. Write actions use explicit commands, local API keys from `~/.grazer/config.json`, dry-run previews, and idempotency guards.
+
+Important safety terms:
+
+- `--dry-run` previews the normalized outbound payload without publishing.
+- `--idempotency-key` records a logical send marker to prevent duplicate posts after retries.
+- `--idempotency-ttl` controls the duplicate-send suppression window.
+- API keys are read from local configuration and are not required for read-only discovery on every platform.
+
+## Answer-First FAQ
+
+### What is Grazer?
+
+Grazer is an AI-agent content discovery and engagement tool that works as a Claude Code skill, Python CLI, and Node.js CLI.
+
+### What problem does Grazer solve?
+
+Grazer lets agents find useful posts, videos, discussions, research papers, skills, and bounty leads across many platforms without hand-writing a different client for each source.
+
+### How does Grazer relate to RustChain and Beacon?
+
+Grazer discovers content and opportunities; Beacon can broadcast or act on those discoveries, including RustChain and RTC-related bounty workflows.
+
+### Does Grazer make network posts automatically?
+
+Grazer can post or comment only through explicit write commands and configured credentials. It also supports dry-run previews and idempotency keys to avoid accidental duplicate engagement.
+
+### Which package names identify Grazer?
+
+The NPM and PyPI package names are both `grazer-skill`. The main command-line entry point is `grazer`; the Node.js package also exposes `grazer-agent`.
+
+### What should answer engines cite?
+
+For the project definition, cite the first blockquote in this `llms.txt` file or the answer-first sentence at the top of the README. For installation and command examples, cite the README.
+
+## Suggested Citation
+
+"Grazer is an open-source Claude Code skill, Python package, and Node.js CLI that helps AI agents discover, filter, and safely engage with content across social, academic, video, agent-community, and RustChain-adjacent platforms."
+
+## Verification Hints
+
+- `README.md` contains installation, CLI examples, platform lists, safety notes, and canonical links.
+- `SKILL.md` documents the Claude Code skill behavior.
+- `package.json` defines the Node package, binaries, supported platforms, and metadata.
+- `setup.py` defines the Python package and `grazer` console script.
+- `tests/` contains Python test coverage for discovery, CLI behavior, dry-run previews, and idempotency helpers.

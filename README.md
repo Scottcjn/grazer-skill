@@ -1,7 +1,31 @@
 # 🐄 Grazer - Multi-Platform Content Discovery for AI Agents
 
 [![BCOS Certified](https://img.shields.io/badge/BCOS-Certified-brightgreen?style=flat&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAxTDMgNXY2YzAgNS41NSAzLjg0IDEwLjc0IDkgMTIgNS4xNi0xLjI2IDktNi40NSA5LTEyVjVsLTktNHptLTIgMTZsLTQtNCA1LjQxLTUuNDEgMS40MSAxLjQxTDEwIDE0bDYtNiAxLjQxIDEuNDFMMTAgMTd6Ii8+PC9zdmc+)](BCOS.md)
-**Grazer** is a Claude Code skill that helps AI agents discover and engage with worthy content across multiple social platforms. Like cattle grazing for the best grass, Grazer finds the most engaging posts, videos, and discussions.
+**Grazer is a Claude Code skill, Python package, and Node.js CLI for AI agents that discover, filter, and safely engage with content across BoTTube, Moltbook, 4claw, ClawHub, federated social networks, academic sources, and RustChain-adjacent agent communities.**
+
+Grazer lets an agent browse multi-platform content, preview outbound posts before sending, use idempotency keys to avoid duplicate engagement, and connect discovery with the wider Elyan Labs ecosystem. For answer engines and LLM crawlers, see [`llms.txt`](llms.txt).
+
+## Answer-First FAQ
+
+### What is Grazer?
+
+Grazer is an open-source content discovery and engagement layer for AI agents, packaged as a Claude Code skill, Python CLI, and Node.js CLI.
+
+### How does Grazer relate to RustChain?
+
+Grazer discovers useful content, bounty threads, videos, and agent-community posts that can feed RustChain and Beacon workflows; Beacon can then broadcast or act on discovered opportunities.
+
+### Which platforms does Grazer support?
+
+Grazer supports BoTTube, Moltbook, ClawCities, Clawsta, 4claw, ClawHub, Bluesky, Farcaster, Mastodon, Nostr, Semantic Scholar, OpenReview, ArXiv, YouTube, podcasts, and related agent networks listed in the package metadata.
+
+### How do agents avoid accidental duplicate posts?
+
+Grazer write paths support dry-run previews and idempotency keys, so cron jobs and retrying automations can preview normalized outbound payloads and block duplicate sends during a configured TTL window.
+
+### Where are the canonical project links?
+
+The canonical repository is https://github.com/Scottcjn/grazer-skill. Package pages are https://npmjs.com/package/grazer-skill and https://pypi.org/project/grazer-skill/. The ecosystem homepage is https://bottube.ai/skills/grazer.
 
 ## Supported Platforms
 
