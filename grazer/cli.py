@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Optional
 
 from grazer import GrazerClient, PLATFORMS, __version__
+from grazer.export import export_discovery
 
 
 def _configure_console_encoding() -> None:
@@ -160,6 +161,19 @@ def _idempotency_mark(scope: str, key: Optional[str], ttl_seconds: int) -> None:
     _save_idempotency_cache(cache)
 
 
+def _maybe_export(args, data) -> None:
+    exports = (
+        ("json", getattr(args, "export_json", None)),
+        ("csv", getattr(args, "export_csv", None)),
+        ("md", getattr(args, "export_md", None)),
+    )
+    for export_format, output in exports:
+        if output:
+            count = export_discovery(args.platform, data, export_format, output)
+            print(f"Exported {count} items to {Path(output).expanduser()}")
+            return
+
+
 def cmd_discover(args):
     """Discover trending content."""
     config = load_config()
@@ -168,6 +182,7 @@ def cmd_discover(args):
     if args.platform == "bottube":
         videos = client.discover_bottube(category=args.category, limit=args.limit)
         videos = videos[:args.limit]
+        _maybe_export(args, videos)
         print("\n🎬 BoTTube Videos:\n")
         for v in videos:
             title = v.get("title", "(untitled)")
@@ -182,6 +197,7 @@ def cmd_discover(args):
     elif args.platform == "moltbook":
         posts = client.discover_moltbook(submolt=args.submolt, limit=args.limit)
         posts = posts[:args.limit]
+        _maybe_export(args, posts)
         print("\n📚 Moltbook Posts:\n")
         for p in posts:
             title = _to_text(p.get("title"), default="(untitled)")
@@ -201,6 +217,7 @@ def cmd_discover(args):
     elif args.platform == "clawcities":
         sites = client.discover_clawcities(limit=args.limit)
         sites = sites[:args.limit]
+        _maybe_export(args, sites)
         print("\n🏙️ ClawCities Sites:\n")
         for s in sites:
             display_name = _to_text(s.get("display_name"), default=_to_text(s.get("name"), default="(unnamed site)"))
@@ -211,6 +228,7 @@ def cmd_discover(args):
     elif args.platform == "clawsta":
         posts = client.discover_clawsta(limit=args.limit)
         posts = posts[:args.limit]
+        _maybe_export(args, posts)
         print("\n🦞 Clawsta Posts:\n")
         for p in posts:
             content = _truncate(p.get("content"), 60, default="(no content)")
@@ -227,6 +245,7 @@ def cmd_discover(args):
         board = args.board or "b"
         threads = client.discover_fourclaw(board=board, limit=args.limit, include_content=True)
         threads = threads[:args.limit]
+        _maybe_export(args, threads)
         print(f"\n🦞 4claw /{board}/:\n")
         for t in threads:
             title = t.get("title", "(untitled)")
@@ -239,6 +258,7 @@ def cmd_discover(args):
     elif args.platform == "pinchedin":
         posts = client.discover_pinchedin(limit=args.limit)
         posts = posts[:args.limit]
+        _maybe_export(args, posts)
         print("\n💼 PinchedIn Feed:\n")
         for p in posts:
             content = _truncate(p.get("content"), 80, default="(no content)")
@@ -255,6 +275,7 @@ def cmd_discover(args):
     elif args.platform == "pinchedin-jobs":
         jobs = client.discover_pinchedin_jobs(limit=args.limit)
         jobs = jobs[:args.limit]
+        _maybe_export(args, jobs)
         print("\n💼 PinchedIn Jobs:\n")
         for j in jobs:
             title = _to_text(j.get("title"), default="?")
@@ -270,6 +291,7 @@ def cmd_discover(args):
     elif args.platform == "clawtasks":
         bounties = client.discover_clawtasks(limit=args.limit)
         bounties = bounties[:args.limit]
+        _maybe_export(args, bounties)
         print("\n🎯 ClawTasks Bounties:\n")
         for b in bounties:
             title = _to_text(b.get("title"), default="(untitled bounty)")
@@ -288,6 +310,7 @@ def cmd_discover(args):
     elif args.platform == "clawnews":
         stories = client.discover_clawnews(limit=args.limit)
         stories = stories[:args.limit]
+        _maybe_export(args, stories)
         print("\n📰 ClawNews Stories:\n")
         for s in stories:
             title = s.get("headline", s.get("title", "?"))
@@ -298,6 +321,7 @@ def cmd_discover(args):
         board = args.board or "ai"
         threads = client.discover_agentchan(board=board, limit=args.limit)
         threads = threads[:args.limit]
+        _maybe_export(args, threads)
         print(f"\n🤖 AgentChan /{board}/:\n")
         for t in threads:
             subject = t.get("subject", t.get("title", "(untitled)"))
@@ -310,6 +334,7 @@ def cmd_discover(args):
         colony = args.board or None
         posts = client.discover_colony(colony=colony, limit=args.limit)
         posts = posts[:args.limit]
+        _maybe_export(args, posts)
         label = f"c/{colony}" if colony else "all"
         print(f"\n🏰 The Colony {label}:\n")
         for p in posts:
@@ -326,6 +351,7 @@ def cmd_discover(args):
     elif args.platform == "moltx":
         posts = client.discover_moltx(limit=args.limit)
         posts = posts[:args.limit]
+        _maybe_export(args, posts)
         print("\n📱 MoltX Feed:\n")
         for p in posts:
             content = _truncate(p.get("content"), 80, default="(no content)")
@@ -338,6 +364,7 @@ def cmd_discover(args):
     elif args.platform == "moltexchange":
         questions = client.discover_moltexchange(limit=args.limit)
         questions = questions[:args.limit]
+        _maybe_export(args, questions)
         print("\n🔄 MoltExchange Questions:\n")
         for q in questions:
             title = _to_text(q.get("title"), default=_truncate(q.get("content"), 60, default="?"))
@@ -354,6 +381,7 @@ def cmd_discover(args):
         query = getattr(args, "category", None) or "AI"
         papers = client.discover_arxiv(query=query, limit=args.limit)
         papers = papers[:args.limit]
+        _maybe_export(args, papers)
         print("\n📄 ArXiv Papers:\n")
         for p in papers:
             title = _to_text(p.get("title"), default="(untitled)")
@@ -372,6 +400,7 @@ def cmd_discover(args):
         query = getattr(args, "category", None) or "AI agents"
         videos = client.discover_youtube(query=query, limit=args.limit)
         videos = videos[:args.limit]
+        _maybe_export(args, videos)
         print("\n▶ YouTube Videos:\n")
         for v in videos:
             title = _to_text(v.get("title"), default="(untitled)")
@@ -387,6 +416,7 @@ def cmd_discover(args):
         query = getattr(args, "category", None) or "artificial intelligence"
         shows = client.discover_podcasts(query=query, limit=args.limit)
         shows = shows[:args.limit]
+        _maybe_export(args, shows)
         print("\n🎙 Podcasts:\n")
         for s in shows:
             name = _to_text(s.get("name"), default="(unnamed)")
@@ -402,6 +432,7 @@ def cmd_discover(args):
         query = getattr(args, "category", None) or "AI agents"
         posts = client.discover_bluesky(query=query, limit=args.limit)
         posts = posts[:args.limit]
+        _maybe_export(args, posts)
         print("\n🦋 Bluesky Posts:\n")
         for p in posts:
             text = _truncate(p.get("text"), 80, default="(no content)")
@@ -416,6 +447,7 @@ def cmd_discover(args):
         query = getattr(args, "category", None) or "AI agents"
         casts = client.discover_farcaster(query=query, limit=args.limit)
         casts = casts[:args.limit]
+        _maybe_export(args, casts)
         print("\n🟪 Farcaster Casts:\n")
         for c in casts:
             text = _truncate(c.get("text"), 80, default="(no content)")
@@ -430,6 +462,7 @@ def cmd_discover(args):
         query = getattr(args, "category", None) or "large language models"
         papers = client.discover_semantic_scholar(query=query, limit=args.limit)
         papers = papers[:args.limit]
+        _maybe_export(args, papers)
         print("\n🎓 Semantic Scholar Papers:\n")
         for p in papers:
             title = _to_text(p.get("title"), default="(untitled)")
@@ -446,6 +479,7 @@ def cmd_discover(args):
         query = getattr(args, "category", None) or "large language models"
         papers = client.discover_openreview(query=query, limit=args.limit)
         papers = papers[:args.limit]
+        _maybe_export(args, papers)
         print("\n📋 OpenReview Papers:\n")
         for p in papers:
             title = _to_text(p.get("title"), default="(untitled)")
@@ -461,6 +495,7 @@ def cmd_discover(args):
         query = getattr(args, "category", None) or "AI"
         posts = client.discover_mastodon(query=query, limit=args.limit)
         posts = posts[:args.limit]
+        _maybe_export(args, posts)
         print("\n🐘 Mastodon Posts:\n")
         for p in posts:
             text = _truncate(p.get("text"), 80, default="(no content)")
@@ -475,6 +510,7 @@ def cmd_discover(args):
         query = getattr(args, "category", None) or "AI"
         events = client.discover_nostr(query=query, limit=args.limit)
         events = events[:args.limit]
+        _maybe_export(args, events)
         print("\n🔮 Nostr Events:\n")
         for e in events:
             content = _truncate(e.get("content"), 80, default="(no content)")
@@ -494,6 +530,7 @@ def cmd_discover(args):
         if deduplicate:
             discover_options["deduplicate"] = True
         all_content = client.discover_all(**discover_options)
+        _maybe_export(args, all_content)
         errors = all_content.pop("_errors", {})
         health = all_content.pop("_health", {})
         canonical = all_content.pop("_canonical", [])
@@ -950,6 +987,10 @@ def main():
     discover_parser.add_argument("-l", "--limit", type=int, default=20, help="Result limit")
     discover_parser.add_argument("--include-health", action="store_true", help="Include machine-readable platform health in all-platform discovery")
     discover_parser.add_argument("--deduplicate", action="store_true", help="Group matching cross-platform observations")
+    export_group = discover_parser.add_mutually_exclusive_group()
+    export_group.add_argument("--export-json", metavar="PATH", help="Export discovery results as JSON")
+    export_group.add_argument("--export-csv", metavar="PATH", help="Export discovery results as CSV")
+    export_group.add_argument("--export-md", metavar="PATH", help="Export discovery results as Markdown")
 
     # stats command
     stats_parser = subparsers.add_parser("stats", help="Get platform statistics")
