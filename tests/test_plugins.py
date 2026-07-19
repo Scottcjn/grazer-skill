@@ -91,6 +91,26 @@ def test_arxiv_discover_calls_api():
     assert "cs.AI" in str(call_kwargs)
 
 
+def test_arxiv_discover_multiword_query_not_double_encoded():
+    """Multi-word queries must be passed raw; requests encodes params itself.
+
+    Regression: pre-encoding the query with urllib quote() caused requests to
+    percent-encode it a second time (space -> %2520), so arXiv searched for the
+    literal token and returned zero results for any multi-word query.
+    """
+    grazer = ArxivGrazer(timeout=5)
+    mock_resp = Mock()
+    mock_resp.text = SAMPLE_ARXIV_XML
+    mock_resp.raise_for_status = Mock()
+
+    with patch.object(grazer.session, "get", return_value=mock_resp) as mock_get:
+        grazer.discover(query="large language models", limit=5)
+
+    sent_query = mock_get.call_args.kwargs["params"]["search_query"]
+    assert sent_query == "all:large language models"
+    assert "%" not in sent_query
+
+
 def test_arxiv_get_paper():
     """ArxivGrazer.get_paper fetches single paper by ID."""
     grazer = ArxivGrazer(timeout=5)
