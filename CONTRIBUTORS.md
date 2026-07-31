@@ -1,19 +1,17 @@
 # Contributors
 
-Thanks to all the contributors who have helped make Grazer Skill awesome!
+We thank everyone who has contributed to Grazer Skill!
 
-## How to Add Yourself
+| Username | Commits |
+|----------|---------|
+| [@Scottcjn](https://github.com/Scottcjn) | Lead maintainer |
+
+## How to Contribute
 
 1. Fork the repository
-2. Add your name, role, and any relevant links below
-3. Submit a PR
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## Contributors List
-
-### Core Team
-
-- Scott (Elyan Labs) - Creator and lead developer
-
-### Community Contributors
-
-- 冷欣宇 (Leng Xinyu) - RustChain Bounty Hunter | Wallet: RTC019e78d600fb3131c29d7ba80aba8fe644be426e
+See CONTRIBUTING.md for detailed guidelines.
