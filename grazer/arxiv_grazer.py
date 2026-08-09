@@ -7,7 +7,6 @@ No API key required.
 import re
 import requests
 from typing import List, Dict, Optional
-from urllib.parse import quote
 
 
 ARXIV_API_BASE = "http://export.arxiv.org/api/query"
@@ -118,7 +117,7 @@ class ArxivGrazer:
         """
         parts = []
         if query:
-            parts.append(f"all:{quote(query)}")
+            parts.append(f"all:{query}")
         if category:
             cat = CATEGORIES.get(category.lower(), category)
             parts.append(f"cat:{cat}")
