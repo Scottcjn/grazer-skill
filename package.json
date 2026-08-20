@@ -11,7 +11,8 @@
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "npm run build",
-    "test": "node dist/test.js"
+    "test": "node dist/test.js",
+    "test:unit": "node --test tests-ts/"
   },
   "keywords": [
     "claude-code",

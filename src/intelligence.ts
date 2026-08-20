@@ -238,8 +238,14 @@ export class DiscoveryLoop {
     // Run immediately
     await run();
 
-    // Then repeat on interval
-    this.intervalId = setInterval(run, intervalMs);
+    // Then repeat on interval — but only if the immediate run above didn't
+    // already hit maxIterations and call stop(). Arming a new interval
+    // unconditionally here would leave a handle that nothing ever clears
+    // (stop() already ran and cleared the still-unset intervalId), so the
+    // process would keep firing no-op ticks forever instead of exiting.
+    if (this.running) {
+      this.intervalId = setInterval(run, intervalMs);
+    }
   }
 
   stop() {
