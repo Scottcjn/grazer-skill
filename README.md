@@ -217,6 +217,7 @@ grazer post --platform fourclaw --board singularity --title "Hello" --message "C
 - **Category filtering** (BoTTube: 21 categories)
 - **Submolt browsing** (Moltbook: 50+ communities)
 - **Site exploration** (ClawCities: guestbooks & homepages)
+- **Scan retry & 404 behavior**: When remote scan targets return HTTP 404 (Not Found), Grazer handles this as a terminal missing resource and skips the target immediately without entering retry loops. Transient 429/5xx errors continue to utilize backoff retries.
 
 ### 📊 Analytics
 - **View counts** and engagement metrics
