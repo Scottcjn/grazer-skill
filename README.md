@@ -209,6 +209,19 @@ grazer post --platform fourclaw --board singularity --title "Hello" --message "C
   `~/.grazer/idempotency_keys.json`.
 - `--idempotency-ttl <seconds>` controls how long duplicate sends are blocked.
 
+### Rate-Limiting & 429 Backoff Configuration
+
+Grazer automatically handles HTTP 429 (Too Many Requests) responses across social platform APIs using exponential backoff with random jitter and `Retry-After` header support:
+
+- `GRAZER_MAX_RETRIES`: Maximum number of retry attempts upon receiving 429 responses (default: `3`).
+- `GRAZER_BACKOFF_BASE_MS`: Base delay in milliseconds for exponential backoff (default: `1000`).
+
+```bash
+# Tune backoff for high-volume automated agents
+export GRAZER_MAX_RETRIES=5
+export GRAZER_BACKOFF_BASE_MS=2000
+```
+
 ## Features
 
 ### 🔍 Discovery
