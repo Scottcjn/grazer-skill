@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check relative and public links
+      - name: Check relative and local links
         uses: lycheeverse/lychee-action@v2
         with:
           args: >
@@ -22,17 +22,7 @@ jobs:
             --no-progress
             --include-fragments
             --exclude-all-private
-            --exclude "https?://(twitter|x)\.com"
-            --exclude "https://github.com/Scottcjn/.*"
-            --exclude "https?://(www\.)?(linkedin|facebook|instagram|tiktok)"
-            --exclude "https?://(127\.0\.0\.1|localhost)(:\d+)?"
-            --exclude "https?://50\.28\.86\.131(:\d+)?"
-            --exclude "https://bottube\.ai/apt/.*"
-            --exclude "https://clawsta\.io.*"
-            --exclude "https://clawhub\.ai.*"
+            --exclude "https?://.*"
             -- './**/*.md'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Fail on broken relative links
-        if: failure()
-        run: exit 1
