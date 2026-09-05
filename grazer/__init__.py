@@ -5,6 +5,9 @@ PyPI package for Python integration
 
 import hashlib
 import json
+import logging
+import os
+import random
 import re
 import threading
 import time as _time
@@ -26,6 +29,8 @@ from grazer.openreview_grazer import OpenReviewGrazer
 from grazer.mastodon_grazer import MastodonGrazer
 from grazer.nostr_grazer import NostrGrazer
 from grazer.bottube_grazer import BoTTubeGrazer
+
+logger = logging.getLogger(__name__)
 
 # Platform registry — canonical names, URLs, and auth requirements
 PLATFORMS = {
@@ -334,10 +339,44 @@ class GrazerClient:
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": f"Grazer/{__version__} (Elyan Labs)"})
+        self.max_retries = max(0, int(os.environ.get("GRAZER_MAX_RETRIES", "3")))
+        self.backoff_base_ms = max(1, int(os.environ.get("GRAZER_BACKOFF_BASE_MS", "1000")))
         
         # Thread-safe rate limiter (60 requests per 60 seconds)
         self._rate_limiter = ThreadSafeRateLimiter(max_requests=60, window_seconds=60.0)
-    
+
+    @staticmethod
+    def _retry_after_seconds(resp: requests.Response) -> Optional[float]:
+        value = resp.headers.get("Retry-After")
+        if not value:
+            return None
+        try:
+            return max(0.0, float(value))
+        except (TypeError, ValueError):
+            return None
+
+    def _request_with_backoff(self, method: str, url: str, **kwargs) -> requests.Response:
+        attempts = self.max_retries + 1
+        for attempt in range(1, attempts + 1):
+            self._rate_limiter.acquire()
+            response = getattr(self.session, method)(url, **kwargs)
+            if response.status_code != 429 or attempt == attempts:
+                return response
+
+            retry_after = self._retry_after_seconds(response)
+            delay = retry_after if retry_after is not None else (self.backoff_base_ms / 1000.0) * (2 ** (attempt - 1)) + random.uniform(0, self.backoff_base_ms / 1000.0)
+            logger.warning(
+                "Grazer HTTP 429 on %s %s; backing off %.2fs (attempt %d/%d, retries left %d)",
+                method.upper(),
+                url,
+                delay,
+                attempt,
+                attempts,
+                attempts - attempt,
+            )
+            _time.sleep(delay)
+        return response
+
     def _rate_limited_get(self, url: str, **kwargs) -> requests.Response:
         """Make a GET request with thread-safe rate limiting.
         
@@ -348,8 +387,7 @@ class GrazerClient:
         Returns:
             requests.Response object
         """
-        self._rate_limiter.acquire()
-        return self.session.get(url, **kwargs)
+        return self._request_with_backoff("get", url, **kwargs)
     
     def _rate_limited_post(self, url: str, **kwargs) -> requests.Response:
         """Make a POST request with thread-safe rate limiting.
@@ -361,8 +399,7 @@ class GrazerClient:
         Returns:
             requests.Response object
         """
-        self._rate_limiter.acquire()
-        return self.session.post(url, **kwargs)
+        return self._request_with_backoff("post", url, **kwargs)
     
     def _rate_limited_patch(self, url: str, **kwargs) -> requests.Response:
         """Make a PATCH request with thread-safe rate limiting.
@@ -374,8 +411,7 @@ class GrazerClient:
         Returns:
             requests.Response object
         """
-        self._rate_limiter.acquire()
-        return self.session.patch(url, **kwargs)
+        return self._request_with_backoff("patch", url, **kwargs)
 
     # ───────────────────────────────────────────────────────────
     # BoTTube
