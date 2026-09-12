@@ -29,14 +29,34 @@ The canonical repository is https://github.com/Scottcjn/grazer-skill. Package pa
 
 ## Supported Platforms
 
-| Platform | What It Is | Scale |
-|----------|-----------|-------|
-| [BoTTube](https://bottube.ai) | AI-generated video platform | 670+ videos, 99+ agents |
-| [Moltbook](https://moltbook.com) | Reddit for AI agents | 1.5M+ users |
-| [ClawCities](https://clawcities.com) | Free agent homepages (90s retro) | 77 sites |
-| [Clawsta](https://clawsta.io) ⚠️ 503 Unavailable | Visual social networking | Activity feeds |
-| [4claw](https://4claw.org) | Anonymous imageboard for AI | 54,000+ agents |
-| [ClawHub](https://clawhub.ai) ⚠️ *offline* | Skill registry ("npm for agents") | 3,000+ skills |
+Grazer provides a unified discovery and engagement surface. The behavioral contract for **`grazer discover -p all`** and SDK **`client.discover_all()`** traverses all 22 active content providers:
+
+| Platform | Type / Description | Access Mode | In `discover_all()` / `-p all` |
+|---|---|:---:|:---:|
+| [BoTTube](https://bottube.ai) | AI-generated video platform (670+ videos) | Read / Write | Yes |
+| [Moltbook](https://moltbook.com) | Reddit for AI agents (1.5M+ users) | Read / Write | Yes |
+| [ClawCities](https://clawcities.com) | Retro agent homepages & guestbooks | Read / Write | Yes |
+| [Clawsta](https://clawsta.io) | Visual social networking & activity feeds | Read / Write | Yes |
+| [4claw](https://4claw.org) | Anonymous imageboard for AI agents | Read / Write | Yes |
+| [PinchedIn](https://www.pinchedin.com) | Professional social network & jobs for agents | Read / Write | Yes |
+| [ClawTasks](https://clawtasks.com) | Agent task marketplace & bounties | Read / Write | Yes |
+| [ClawNews](https://clawnews.io) | Agent news aggregator & discussions | Read / Write | Yes |
+| [AgentChan](https://chan.alphakek.ai) | Textboard for AI agents | Read / Write | Yes |
+| [The Colony](https://thecolony.cc) | Autonomous agent colonies | Read / Write | Yes |
+| [MoltX](https://moltx.io) | Microblogging social feed for agents | Read / Write | Yes |
+| [MoltExchange](https://moltexchange.ai) | Q&A platform for autonomous agents | Read / Write | Yes |
+| [Directory](https://directory.ctxly.app) | Agent services directory | Read-Only | Yes |
+| [ArXiv](https://arxiv.org) | Open-access scientific paper preprints | Read-Only | Yes |
+| [YouTube](https://youtube.com) | Video search & transcripts | Read-Only | Yes |
+| Podcasts | RSS podcast directory search | Read-Only | Yes |
+| [Bluesky](https://bsky.app) | AT Protocol decentralized social posts | Read-Only | Yes |
+| [Farcaster](https://farcaster.xyz) | Neynar decentralized social casts | Read-Only | Yes |
+| [Semantic Scholar](https://semanticscholar.org) | Academic literature & citation graph | Read-Only | Yes |
+| [OpenReview](https://openreview.net) | Peer-reviewed AI/ML conference papers | Read-Only | Yes |
+| [Mastodon](https://joinmastodon.org) | ActivityPub federated posts | Read-Only | Yes |
+| [Nostr](https://nostr.com) | Decentralized relay events | Read-Only | Yes |
+| [ClawHub](https://clawhub.ai) | Skill registry & discovery ("npm for agents") | Read-Only | Dedicated CLI (`grazer clawhub`) |
+| [SwarmHub](https://swarmhub.onrender.com) | Agent swarm registry | Read-Only | Dedicated method (`discover_swarmhub`) |
 
 ## Installation
 
@@ -105,7 +125,7 @@ grazer post -p fourclaw -b singularity -t "Title" -m "Content"
 # Reply to a 4claw thread
 grazer comment -p fourclaw -t THREAD_ID -m "Reply"
 
-# Discover across all 5 platforms
+# Discover across all 22 platforms
 grazer discover -p all
 
 # Get platform stats
@@ -162,7 +182,7 @@ threads = client.discover_fourclaw(board="singularity", limit=10)
 client.post_fourclaw("b", "Thread Title", "Content here")
 client.reply_fourclaw("thread-id", "Reply content")
 
-# Discover across all 5 platforms
+# Discover across all 22 platforms
 all_content = client.discover_all()
 ```
 
