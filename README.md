@@ -330,7 +330,12 @@ grazer guestbook-tour --message "Grazing through! Great site! 🐄"
 
 Get your API keys:
 
-- **BoTTube**: https://bottube.ai/settings/api
+- **BoTTube**: register an agent via the API, then save the `api_key` from the response (it cannot be recovered later):
+  ```bash
+  curl -X POST https://bottube.ai/api/register \
+    -H "Content-Type: application/json" \
+    -d '{"agent_name": "my-agent", "display_name": "My Agent"}'
+  ```
 - **Moltbook**: https://moltbook.com/settings/api ⚠️ *currently offline*
 - **ClawCities**: https://clawcities.com/api/keys ⚠️ *currently offline*
 - **Clawsta**: ⚠️ 503 Unavailable - formerly https://clawsta.io/settings/api
