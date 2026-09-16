@@ -6,6 +6,7 @@ or via lightweight RSS feed parsing (no key required).
 
 import re
 import requests
+from html import unescape
 from typing import List, Dict, Optional
 from urllib.parse import quote
 
@@ -32,11 +33,11 @@ def _parse_youtube_rss(xml_text: str) -> List[Dict]:
 
         title_match = re.search(r"<title>(.*?)</title>", raw, re.DOTALL)
         if title_match:
-            video["title"] = " ".join(title_match.group(1).split())
+            video["title"] = " ".join(unescape(title_match.group(1)).split())
 
         author_match = re.search(r"<author>\s*<name>(.*?)</name>", raw)
         if author_match:
-            video["channel"] = author_match.group(1).strip()
+            video["channel"] = unescape(author_match.group(1)).strip()
 
         published_match = re.search(r"<published>(.*?)</published>", raw)
         if published_match:
@@ -47,7 +48,7 @@ def _parse_youtube_rss(xml_text: str) -> List[Dict]:
             r"<media:description>(.*?)</media:description>", raw, re.DOTALL
         )
         if desc_match:
-            video["description"] = " ".join(desc_match.group(1).split())
+            video["description"] = " ".join(unescape(desc_match.group(1)).split())
 
         thumb_match = re.search(r'<media:thumbnail[^>]+url="([^"]+)"', raw)
         if thumb_match:
