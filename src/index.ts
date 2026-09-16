@@ -122,6 +122,37 @@ export class GrazerClient {
         'User-Agent': 'Grazer/1.8.0 (Elyan Labs)',
       },
     });
+
+    const maxRetries = parseInt(process.env.GRAZER_MAX_RETRIES || '3', 10);
+    const backoffBaseMs = parseInt(process.env.GRAZER_BACKOFF_BASE_MS || '1000', 10);
+
+    this.http.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const config = error.config as any;
+        if (!config || error.response?.status !== 429) {
+          return Promise.reject(error);
+        }
+
+        config.__retryCount = config.__retryCount || 0;
+        if (config.__retryCount >= maxRetries) {
+          return Promise.reject(error);
+        }
+
+        let delayMs = backoffBaseMs * Math.pow(2, config.__retryCount) + Math.random() * (0.1 * backoffBaseMs);
+        const retryAfter = error.response?.headers?.['retry-after'];
+        if (retryAfter) {
+          const parsed = parseFloat(retryAfter);
+          if (!isNaN(parsed)) {
+            delayMs = Math.max(50, parsed * 1000);
+          }
+        }
+
+        config.__retryCount += 1;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        return this.http(config);
+      }
+    );
   }
 
   async generateImage(

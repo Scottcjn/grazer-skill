@@ -5,14 +5,44 @@ PyPI package for Python integration
 
 import hashlib
 import json
+import logging
+import os
+import random
 import re
 import threading
 import time as _time
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any, List, Dict, Optional
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import requests
+
+logger = logging.getLogger("grazer")
+
+DEFAULT_MAX_RETRIES = 3
+DEFAULT_BACKOFF_BASE_MS = 1000
+
+
+def _compute_backoff_delay(resp: Optional[requests.Response], attempt: int, base_ms: int) -> float:
+    """Compute backoff delay respecting Retry-After header with exponential backoff and jitter fallback."""
+    if resp is not None and "Retry-After" in resp.headers:
+        retry_after = resp.headers.get("Retry-After", "").strip()
+        try:
+            return max(0.05, float(retry_after))
+        except ValueError:
+            try:
+                dt = parsedate_to_datetime(retry_after)
+                delay = (dt - datetime.now(timezone.utc)).total_seconds()
+                return max(0.05, delay)
+            except Exception:
+                pass
+
+    # Exponential backoff: (base_ms / 1000.0) * (2 ** attempt) + jitter
+    base_sec = (max(1, base_ms) / 1000.0) * (2 ** attempt)
+    jitter = random.uniform(0.0, 0.1 * base_sec)
+    return base_sec + jitter
+
 
 from grazer.imagegen import generate_svg, svg_to_media, generate_template_svg, generate_llm_svg
 from grazer.clawhub import ClawHubClient
@@ -299,6 +329,8 @@ class GrazerClient:
         llm_model: str = "gpt-oss-120b",
         llm_api_key: Optional[str] = None,
         timeout: int = 15,
+        max_retries: Optional[int] = None,
+        backoff_base_ms: Optional[int] = None,
     ):
         self.bottube_key = bottube_key
         self.moltbook_key = moltbook_key
@@ -316,6 +348,16 @@ class GrazerClient:
         self.youtube_api_key = youtube_api_key
         self.farcaster_api_key = farcaster_api_key
         self.semantic_scholar_api_key = semantic_scholar_api_key
+        self.max_retries = (
+            max_retries
+            if max_retries is not None
+            else int(os.environ.get("GRAZER_MAX_RETRIES", str(DEFAULT_MAX_RETRIES)))
+        )
+        self.backoff_base_ms = (
+            backoff_base_ms
+            if backoff_base_ms is not None
+            else int(os.environ.get("GRAZER_BACKOFF_BASE_MS", str(DEFAULT_BACKOFF_BASE_MS)))
+        )
         self._colony_jwt = None  # Cached JWT from API key exchange
         self._clawhub = ClawHubClient(token=clawhub_token, timeout=timeout) if clawhub_token else ClawHubClient(timeout=timeout)
         self._bottube = BoTTubeGrazer(api_key=bottube_key, timeout=timeout)
@@ -337,9 +379,52 @@ class GrazerClient:
         
         # Thread-safe rate limiter (60 requests per 60 seconds)
         self._rate_limiter = ThreadSafeRateLimiter(max_requests=60, window_seconds=60.0)
+
+    def _request_with_backoff(self, method: str, url: str, **kwargs) -> requests.Response:
+        """Make an HTTP request with exponential backoff and jitter on 429 responses.
+        
+        Args:
+            method: HTTP method (GET, POST, PATCH, etc.)
+            url: Request URL
+            **kwargs: Additional arguments passed to requests.Session.request()
+            
+        Returns:
+            requests.Response object
+        """
+        max_retries = int(os.environ.get("GRAZER_MAX_RETRIES", str(self.max_retries)))
+        base_ms = int(os.environ.get("GRAZER_BACKOFF_BASE_MS", str(self.backoff_base_ms)))
+
+        for attempt in range(max_retries + 1):
+            self._rate_limiter.acquire()
+            resp = self.session.request(method, url, **kwargs)
+
+            if resp.status_code == 429:
+                remaining_retries = max_retries - attempt
+                if remaining_retries <= 0:
+                    logger.warning(
+                        "429 rate limit exceeded. Retry budget exhausted (0/%d retries remaining) for %s",
+                        max_retries,
+                        url,
+                    )
+                    return resp
+
+                delay = _compute_backoff_delay(resp, attempt, base_ms)
+                logger.info(
+                    "Received 429 Too Many Requests from %s. Backing off for %.2fs with %d/%d retries remaining.",
+                    url,
+                    delay,
+                    remaining_retries - 1,
+                    max_retries,
+                )
+                _time.sleep(delay)
+                continue
+
+            return resp
+
+        return resp
     
     def _rate_limited_get(self, url: str, **kwargs) -> requests.Response:
-        """Make a GET request with thread-safe rate limiting.
+        """Make a GET request with thread-safe rate limiting and 429 backoff.
         
         Args:
             url: Request URL
@@ -348,11 +433,10 @@ class GrazerClient:
         Returns:
             requests.Response object
         """
-        self._rate_limiter.acquire()
-        return self.session.get(url, **kwargs)
+        return self._request_with_backoff("GET", url, **kwargs)
     
     def _rate_limited_post(self, url: str, **kwargs) -> requests.Response:
-        """Make a POST request with thread-safe rate limiting.
+        """Make a POST request with thread-safe rate limiting and 429 backoff.
         
         Args:
             url: Request URL
@@ -361,11 +445,10 @@ class GrazerClient:
         Returns:
             requests.Response object
         """
-        self._rate_limiter.acquire()
-        return self.session.post(url, **kwargs)
+        return self._request_with_backoff("POST", url, **kwargs)
     
     def _rate_limited_patch(self, url: str, **kwargs) -> requests.Response:
-        """Make a PATCH request with thread-safe rate limiting.
+        """Make a PATCH request with thread-safe rate limiting and 429 backoff.
         
         Args:
             url: Request URL
@@ -374,8 +457,7 @@ class GrazerClient:
         Returns:
             requests.Response object
         """
-        self._rate_limiter.acquire()
-        return self.session.patch(url, **kwargs)
+        return self._request_with_backoff("PATCH", url, **kwargs)
 
     # ───────────────────────────────────────────────────────────
     # BoTTube
