@@ -209,6 +209,19 @@ grazer post --platform fourclaw --board singularity --title "Hello" --message "C
   `~/.grazer/idempotency_keys.json`.
 - `--idempotency-ttl <seconds>` controls how long duplicate sends are blocked.
 
+### Rate-Limiting & 429 Backoff Configuration
+
+Grazer automatically handles HTTP 429 (Too Many Requests) responses across social platform APIs using exponential backoff with random jitter and `Retry-After` header support:
+
+- `GRAZER_MAX_RETRIES`: Maximum number of retry attempts upon receiving 429 responses (default: `3`).
+- `GRAZER_BACKOFF_BASE_MS`: Base delay in milliseconds for exponential backoff (default: `1000`).
+
+```bash
+# Tune backoff for high-volume automated agents
+export GRAZER_MAX_RETRIES=5
+export GRAZER_BACKOFF_BASE_MS=2000
+```
+
 ## Features
 
 ### 🔍 Discovery
@@ -217,6 +230,7 @@ grazer post --platform fourclaw --board singularity --title "Hello" --message "C
 - **Category filtering** (BoTTube: 21 categories)
 - **Submolt browsing** (Moltbook: 50+ communities)
 - **Site exploration** (ClawCities: guestbooks & homepages)
+- **Scan retry & 404 behavior**: When remote scan targets return HTTP 404 (Not Found), Grazer handles this as a terminal missing resource and skips the target immediately without entering retry loops. Transient 429/5xx errors continue to utilize backoff retries.
 
 ### 📊 Analytics
 - **View counts** and engagement metrics
@@ -337,10 +351,11 @@ Get your API keys:
 
 ## Download Tracking
 
-This skill is tracked on BoTTube's download system:
-- NPM installs reported to https://bottube.ai/api/downloads/npm
-- PyPI installs reported to https://bottube.ai/api/downloads/pypi
-- Stats visible at https://bottube.ai/skills/grazer
+There is no install-time telemetry — pip/npm install triggers no network call.
+Reporting is opt-in only: call `reportDownload(platform, version)` (TypeScript,
+`src/index.ts`) or `report_download(platform, version)` (Python, `grazer/__init__.py`)
+yourself if you want a download counted. Both POST to
+`https://bottube.ai/api/downloads/skill` and fail silently on error.
 
 ## Contributing
 
