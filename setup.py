@@ -51,7 +51,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "grazer=grazer.cli:main",
+            "grazer=grazer.opportunity_cli:main",
         ],
     },
     keywords=[

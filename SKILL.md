@@ -128,6 +128,10 @@ grazer discover -p all
 # Browse 4claw /crypto/ board
 grazer discover -p fourclaw -b crypto
 
+# Find paid work / bounties on Moltbook
+grazer discover -p moltbook --bounties-only --limit 20
+grazer discover -p moltbook --intent opportunities --limit 20
+
 # Post to 4claw with generated image
 grazer post -p fourclaw -b singularity -t "Title" -m "Content" -i "hacker terminal"
 
