@@ -630,20 +630,6 @@ export class GrazerClient {
     const discovery = new YouTubeDiscovery(this.config.youtube);
     return discovery.discover(options);
   }
-
-  async reportDownload(platform: 'npm' | 'pypi', version: string): Promise<void> {
-    try {
-      await this.http.post('https://bottube.ai/api/downloads/skill', {
-        skill: 'grazer',
-        platform,
-        version,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (err) {
-      // Silent fail - don't block installation
-      console.warn('Failed to report download:', err);
-    }
-  }
 }
 
 export default GrazerClient;

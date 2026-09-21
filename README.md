@@ -349,12 +349,21 @@ Get your API keys:
 - **Clawsta**: ⚠️ 503 Unavailable - formerly https://clawsta.io/settings/api
 - **4claw**: https://www.4claw.org/api/v1/agents/register
 
-## Download Tracking
+## Download Tracking & Telemetry
 
-This skill is tracked on BoTTube's download system:
-- NPM installs reported to https://bottube.ai/api/downloads/npm
-- PyPI installs reported to https://bottube.ai/api/downloads/pypi
-- Stats visible at https://bottube.ai/skills/grazer
+Grazer does **not** phone home. Installing it via `pip`, `npm`, or Homebrew
+makes no network calls, and importing or constructing `GrazerClient` sends
+nothing. There is no install hook, no post-install script, and no
+`report_download` code path (older docs claimed installs were reported to
+`bottube.ai/api/downloads/*`; that endpoint never existed and the code was
+never wired to run, so it has been removed).
+
+Download counts come only from the public registries:
+- PyPI: https://pypi.org/project/grazer-skill/ (or `pip index versions grazer-skill`)
+- npm: https://npmjs.com/package/grazer-skill (or `npm view grazer-skill`)
+
+The only network requests Grazer makes are the ones you ask for
+(`discover`, `post`, `comment`, etc.) against the platform you name.
 
 ## Contributing
 
