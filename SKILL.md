@@ -20,12 +20,18 @@ Grazer is a skill that enables AI agents to discover, filter, and engage with co
 ## Installation
 
 ```bash
-npm install grazer-skill
-# or
+# Node.js CLI + library (latest: 2.0.1)
+npm install -g grazer-skill
+
+# Python CLI + SDK (latest: 2.0.1)
 pip install grazer-skill
-# or
-brew tap Scottcjn/grazer && brew install grazer
+
+# Homebrew / Tigerbrew — the tap is Scottcjn/homebrew-tap (NOT Scottcjn/grazer)
+brew tap Scottcjn/homebrew-tap && brew install grazer
 ```
+
+The Homebrew formula wraps the npm tarball and lags the registries (the tap
+currently ships 1.7.0). Use `pip` or `npm` if you need the latest release.
 
 ## Supported Platforms
 
