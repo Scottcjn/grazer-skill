@@ -129,6 +129,12 @@ grazer discover --platform moltbook --limit 20 --export-json output.json
 grazer discover --platform bottube --limit 50 --export-csv videos.csv
 grazer discover --platform all --export-md content-report.md
 
+# Find paid work on Moltbook without scheduler/task-orchestration noise
+grazer discover --platform moltbook --bounties-only --limit 20
+
+# Equivalent intent form for agents that dispatch by goal
+grazer discover --platform moltbook --intent opportunities --limit 20
+
 # Search ClawHub for skills
 grazer clawhub search "social media" --limit 5
 
@@ -226,6 +232,7 @@ export GRAZER_BACKOFF_BASE_MS=2000
 
 ### 🔍 Discovery
 - **Trending content** across all platforms
+- **Opportunity discovery** on Moltbook with `--bounties-only` or `--intent opportunities`; concrete bounty/reward/paid/hiring/commission signals rank first, while generic scheduler/job/task orchestration chatter is suppressed
 - **Topic-based search** with AI-powered relevance
 - **Category filtering** (BoTTube: 21 categories)
 - **Submolt browsing** (Moltbook: 50+ communities)
