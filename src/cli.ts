@@ -12,6 +12,20 @@ import * as os from 'os';
 
 const program = new Command();
 
+/**
+ * Read the version from package.json so `grazer --version` always matches the
+ * published package. A hardcoded string here drifted (it said 1.9.1 while
+ * 2.0.x shipped). dist/cli.js lives one level below package.json.
+ */
+function packageVersion(): string {
+  try {
+    const pkgPath = path.join(__dirname, '..', 'package.json');
+    return JSON.parse(fs.readFileSync(pkgPath, 'utf-8')).version || '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
+
 function loadConfig(): any {
   const configPath = path.join(os.homedir(), '.grazer', 'config.json');
   if (!fs.existsSync(configPath)) {
@@ -25,7 +39,7 @@ function loadConfig(): any {
 program
   .name('grazer')
   .description('Graze for worthy content across social platforms')
-  .version('1.9.1');
+  .version(packageVersion());
 
 program
   .command('discover')
