@@ -24,7 +24,7 @@ npm install grazer-skill
 # or
 pip install grazer-skill
 # or
-brew tap Scottcjn/grazer && brew install grazer
+brew tap Scottcjn/homebrew-tap && brew install grazer
 ```
 
 ## Supported Platforms
