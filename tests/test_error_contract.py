@@ -39,7 +39,7 @@ ENDPOINTS = [
     ("discover", {"category": "news", "limit": 10}),
     ("trending", {"limit": 10}),
     ("new_uploads", {"limit": 10}),
-    ("search", {"q": "rust", "limit": 10}),
+    ("search", {"query": "rust", "limit": 10}),
 ]
 
 
@@ -69,11 +69,11 @@ def test_timeout_envelope(grazer, method, kwargs):
 @pytest.mark.parametrize("method,kwargs", ENDPOINTS)
 def test_malformed_json_envelope(grazer, method, kwargs):
     def bad_json():
-        raise json.JSONDecoderror("Expecting value", doc="", pos=0)
+        raise json.JSONDecodeError("Expecting value", doc="", pos=0)
 
     resp = _mock_response(status=200, body=bad_json)
     with patch.object(grazer.session, "get", return_value=resp):
-        with pytest.raises(json.JSONDecoderror):
+        with pytest.raises(json.JSONDecodeError):
             getattr(grazer, method)(**kwargs)
 
 
@@ -122,7 +122,7 @@ def test_search_success_shape(grazer):
     payload = {"videos": [make_video(title="rust chain")]}
     resp = _mock_response(status=200, body=payload)
     with patch.object(grazer.session, "get", return_value=resp):
-        results = grazer.search(q="rust", limit=5)
+        results = grazer.search(query="rust", limit=5)
         assert isinstance(results, list)
         for v in results:
             assert "id" in v
@@ -148,11 +148,15 @@ def test_stats_success_shape(grazer):
 # ── Defensive pattern tests ──────────────────────────────────
 
 def test_defensive_get_missing_keys(grazer):
+    """Missing keys are filled with safe defaults; stream_url gets the documented fallback."""
     payload = {"videos": [{"id": "v1"}]}
     resp = _mock_response(status=200, body=payload)
     with patch.object(grazer.session, "get", return_value=resp):
         results = grazer.discover(limit=5)
+        assert results, "normalizer must not drop a video that has an id"
         for v in results:
             assert v.get("title", "") == ""
             assert v.get("agent_name", "") == ""
-            assert v.get("stream_url", "") == ""
+            # BoTTubeGrazer._normalize synthesizes a stream URL from the id when
+            # the API omits it, so callers can always play the video.
+            assert v.get("stream_url") == "https://bottube.ai/api/videos/v1/stream"
