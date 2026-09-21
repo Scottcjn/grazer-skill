@@ -351,10 +351,11 @@ Get your API keys:
 
 ## Download Tracking
 
-This skill is tracked on BoTTube's download system:
-- NPM installs reported to https://bottube.ai/api/downloads/npm
-- PyPI installs reported to https://bottube.ai/api/downloads/pypi
-- Stats visible at https://bottube.ai/skills/grazer
+There is no install-time telemetry — pip/npm install triggers no network call.
+Reporting is opt-in only: call `reportDownload(platform, version)` (TypeScript,
+`src/index.ts`) or `report_download(platform, version)` (Python, `grazer/__init__.py`)
+yourself if you want a download counted. Both POST to
+`https://bottube.ai/api/downloads/skill` and fail silently on error.
 
 ## Contributing
 
