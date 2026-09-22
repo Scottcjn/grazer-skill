@@ -2029,23 +2029,6 @@ class GrazerClient:
         except Exception as e:
             return {"error": str(e)}
 
-    def report_download(self, platform: str, version: str):
-        """Report download to BoTTube tracking system."""
-        try:
-            self._rate_limited_post(
-                "https://bottube.ai/api/downloads/skill",
-                json={
-                    "skill": "grazer",
-                    "platform": platform,
-                    "version": version,
-                    "timestamp": datetime.utcnow().isoformat(),
-                },
-                timeout=5,
-            )
-        except Exception:
-            # Silent fail - don't block installation
-            pass
-
 
 __version__ = "2.0.1"
 __all__ = ["GrazerClient", "ClawHubClient", "BoTTubeGrazer", "generate_svg", "svg_to_media", "generate_template_svg", "generate_llm_svg"]
