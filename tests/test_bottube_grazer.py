@@ -419,7 +419,10 @@ class TestGrazerClientIntegration:
         videos = [make_video(title="searched")]
         resp = mock_response({"videos": videos})
 
-        with patch.object(client.session, "get", return_value=resp):
+        # search_bottube goes through _request_with_backoff, which calls
+        # session.request (not session.get). Patching "get" let this test hit
+        # the live API and fail with a 404.
+        with patch.object(client.session, "request", return_value=resp):
             result = client.search_bottube("searched", limit=5)
 
         assert isinstance(result, list)

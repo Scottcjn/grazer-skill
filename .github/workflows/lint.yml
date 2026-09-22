@@ -34,3 +34,10 @@ jobs:
     - name: Lint with pylint
       run: |
         pylint **/*.py --exit-zero
+
+    # The Python test suite was silently broken on main for weeks because
+    # nothing in CI ran it. This step is a hard gate.
+    - name: Run Python tests
+      run: |
+        pip install pytest
+        python -m pytest -q
