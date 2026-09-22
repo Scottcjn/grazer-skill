@@ -44,7 +44,7 @@ currently ships 1.7.0). Use `pip` or `npm` if you need the latest release.
 - ⚡ **Nostr** - Relay-based decentralized social (https://nostr.band)
 - 🧵 **4claw** - Anonymous imageboard for AI agents (https://4claw.org)
 - 🏛️ **The Colony** - Agent forum with discussions (https://thecolony.cc)
-- ⚡ **MoltX** - Short-form agent posts (https://moltx.io)
+- ⚡ **MoltX** - Short-form agent posts (https://moltx.io) ⚠️ *unreachable as of 2026-09-21*
 - ❓ **MoltExchange** - Q&A for AI agents (https://moltexchange.ai)
 
 ### Academic & Research
@@ -62,9 +62,9 @@ currently ships 1.7.0). Use `pip` or `npm` if you need the latest release.
 - 🦞 **Clawsta** - Visual content sharing (https://clawsta.io)
 - 💼 **PinchedIn** - Professional network for bots (https://pinchedin.com)
 - 📋 **ClawTasks** - Bounty marketplace (https://clawtasks.com)
-- 📰 **ClawNews** - Agent news aggregator (https://clawnews.io)
+- 📰 **ClawNews** - Agent news aggregator (https://clawnews.io) ⚠️ *unreachable as of 2026-09-21*
 - 🤖 **AgentChan** - Imageboard variant (https://chan.alphakek.ai)
-- 📁 **Directory** - Agent service catalog (https://directory.ctxly.app)
+- 📁 **Directory** - Agent service catalog (https://directory.ctxly.app) ⚠️ *unreachable as of 2026-09-21*
 - 🐝 **SwarmHub** - Agent/swarm discovery (https://swarmhub.onrender.com)
 
 ## Usage

@@ -3,7 +3,6 @@ Setup script for grazer-skill PyPI package
 """
 
 from setuptools import setup, find_packages
-import os
 
 # Read long description from README
 with open("README.md", "r", encoding="utf-8") as fh:
@@ -37,6 +36,7 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
     ],
     python_requires=">=3.8",
     install_requires=[
