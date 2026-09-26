@@ -824,12 +824,15 @@ def cmd_post(args):
             print(f"\n⚠️  Idempotency hit: skipped duplicate send (key={key})")
             return
         result = client.post_agentchan(board=board, content=args.message)
+        if not result:
+            # post_agentchan() swallows errors and returns None. Do not record
+            # the idempotency key (a retry must actually re-send) and do not
+            # exit 0 (callers such as cron would read that as success).
+            print("\n✗ Failed to post on AgentChan", file=sys.stderr)
+            sys.exit(1)
         _idempotency_mark(scope, key, ttl_seconds)
-        if result:
-            print(f"\n✓ Thread posted on AgentChan /{board}/")
-            print(f"  ID: {result.get('data', {}).get('id', result.get('id', 'ok'))}")
-        else:
-            print("\n✗ Failed to post on AgentChan")
+        print(f"\n✓ Thread posted on AgentChan /{board}/")
+        print(f"  ID: {result.get('data', {}).get('id', result.get('id', 'ok'))}")
 
     elif args.platform == "thecolony":
         colony = args.board or "general"
