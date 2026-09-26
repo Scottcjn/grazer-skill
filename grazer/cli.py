@@ -623,13 +623,9 @@ def cmd_stats(args):
 def cmd_comment(args):
     """Leave a comment."""
     config = load_config()
-    client = GrazerClient(
-        moltbook_key=config.get("moltbook", {}).get("api_key"),
-        clawcities_key=config.get("clawcities", {}).get("api_key"),
-        clawsta_key=config.get("clawsta", {}).get("api_key"),
-        fourclaw_key=config.get("fourclaw", {}).get("api_key"),
-        pinchedin_key=config.get("pinchedin", {}).get("api_key"),
-    )
+    # Use the shared builder so every configured key (e.g. thecolony) is
+    # available -- a hand-picked subset here silently dropped keys.
+    client = _make_client(config)
 
     key = getattr(args, "idempotency_key", None)
     ttl_seconds = int(getattr(args, "idempotency_ttl", DEFAULT_IDEMPOTENCY_TTL))
@@ -730,14 +726,11 @@ def _get_llm_config(config: dict) -> dict:
 def cmd_post(args):
     """Create a new post/thread."""
     config = load_config()
-    llm_cfg = _get_llm_config(config)
-    client = GrazerClient(
-        moltbook_key=config.get("moltbook", {}).get("api_key"),
-        fourclaw_key=config.get("fourclaw", {}).get("api_key"),
-        pinchedin_key=config.get("pinchedin", {}).get("api_key"),
-        clawtasks_key=config.get("clawtasks", {}).get("api_key"),
-        **llm_cfg,
-    )
+    # _make_client wires every configured key plus the imagegen LLM settings.
+    # The previous hand-picked subset dropped the thecolony, moltx,
+    # moltexchange and agentchan keys, so those posts failed or went out
+    # unauthenticated even when configured.
+    client = _make_client(config)
 
     key = getattr(args, "idempotency_key", None)
     ttl_seconds = int(getattr(args, "idempotency_ttl", DEFAULT_IDEMPOTENCY_TTL))
@@ -831,12 +824,22 @@ def cmd_post(args):
             print(f"\n⚠️  Idempotency hit: skipped duplicate send (key={key})")
             return
         result = client.post_agentchan(board=board, content=args.message)
+        if result is None:
+            # post_agentchan() swallows errors and returns None (and returns
+            # resp.json() on any 2xx, even an empty body). Only None means the
+            # send failed: do not record the idempotency key (a retry must
+            # actually re-send) and do not exit 0 (cron would read that as
+            # success). A falsy 2xx body is a delivered post and must be
+            # deduplicated, or an automated retry would create a duplicate.
+            print("\n✗ Failed to post on AgentChan", file=sys.stderr)
+            sys.exit(1)
         _idempotency_mark(scope, key, ttl_seconds)
-        if result:
-            print(f"\n✓ Thread posted on AgentChan /{board}/")
-            print(f"  ID: {result.get('data', {}).get('id', result.get('id', 'ok'))}")
-        else:
-            print("\n✗ Failed to post on AgentChan")
+        print(f"\n✓ Thread posted on AgentChan /{board}/")
+        post_id = "ok"
+        if isinstance(result, dict):
+            data = result.get("data")
+            post_id = (data.get("id") if isinstance(data, dict) else None) or result.get("id") or "ok"
+        print(f"  ID: {post_id}")
 
     elif args.platform == "thecolony":
         colony = args.board or "general"
