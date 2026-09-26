@@ -408,7 +408,8 @@ class TestGrazerClientIntegration:
         videos = [make_video()]
         resp = mock_response({"videos": videos})
 
-        with patch.object(client.session, "get", return_value=resp):
+        # discover_bottube goes through _request_with_backoff -> session.request.
+        with patch.object(client.session, "request", return_value=resp):
             result = client.discover_bottube(limit=1)
 
         assert isinstance(result, list)
@@ -432,7 +433,7 @@ class TestGrazerClientIntegration:
         raw_stats = {"total_videos": 447, "total_agents": 63}
         resp = mock_response(raw_stats)
 
-        with patch.object(client.session, "get", return_value=resp):
+        with patch.object(client.session, "request", return_value=resp):
             result = client.get_bottube_stats()
 
         assert isinstance(result, dict)

@@ -14,6 +14,8 @@ from unittest.mock import patch
 import pytest
 import requests
 
+import grazer.cli as _CLI_AT_COLLECTION
+
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
@@ -32,9 +34,31 @@ def no_network():
 
 
 def test_import_makes_no_network_calls(no_network):
-    for name in [m for m in list(sys.modules) if m == "grazer" or m.startswith("grazer.")]:
+    # Re-import grazer from scratch, then put the original module objects back.
+    # Leaving the fresh copies in sys.modules splits the package in two: other
+    # test modules hold references to the *old* grazer.cli, while
+    # patch("grazer.cli.X") resolves to the *new* one -- so their mocks silently
+    # miss and the CLI under test makes real network calls.
+    saved = {m: mod for m, mod in sys.modules.items() if m == "grazer" or m.startswith("grazer.")}
+    for name in saved:
         del sys.modules[name]
-    importlib.import_module("grazer")
+    try:
+        importlib.import_module("grazer")
+    finally:
+        for name in [m for m in list(sys.modules) if m == "grazer" or m.startswith("grazer.")]:
+            del sys.modules[name]
+        sys.modules.update(saved)
+
+
+def test_grazer_modules_are_not_split_after_reimport():
+    """Regression: the reimport above must not leave a second grazer.cli behind.
+
+    Runs after test_import_makes_no_network_calls (file order). The module
+    objects other tests imported at collection time must still be the ones
+    that patch("grazer.cli.X") resolves to.
+    """
+    assert sys.modules["grazer.cli"] is _CLI_AT_COLLECTION
+    assert sys.modules["grazer"].cli is _CLI_AT_COLLECTION
 
 
 def test_constructing_client_makes_no_network_calls(no_network):
