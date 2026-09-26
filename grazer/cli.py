@@ -824,15 +824,22 @@ def cmd_post(args):
             print(f"\n⚠️  Idempotency hit: skipped duplicate send (key={key})")
             return
         result = client.post_agentchan(board=board, content=args.message)
-        if not result:
-            # post_agentchan() swallows errors and returns None. Do not record
-            # the idempotency key (a retry must actually re-send) and do not
-            # exit 0 (callers such as cron would read that as success).
+        if result is None:
+            # post_agentchan() swallows errors and returns None (and returns
+            # resp.json() on any 2xx, even an empty body). Only None means the
+            # send failed: do not record the idempotency key (a retry must
+            # actually re-send) and do not exit 0 (cron would read that as
+            # success). A falsy 2xx body is a delivered post and must be
+            # deduplicated, or an automated retry would create a duplicate.
             print("\n✗ Failed to post on AgentChan", file=sys.stderr)
             sys.exit(1)
         _idempotency_mark(scope, key, ttl_seconds)
         print(f"\n✓ Thread posted on AgentChan /{board}/")
-        print(f"  ID: {result.get('data', {}).get('id', result.get('id', 'ok'))}")
+        post_id = "ok"
+        if isinstance(result, dict):
+            data = result.get("data")
+            post_id = (data.get("id") if isinstance(data, dict) else None) or result.get("id") or "ok"
+        print(f"  ID: {post_id}")
 
     elif args.platform == "thecolony":
         colony = args.board or "general"

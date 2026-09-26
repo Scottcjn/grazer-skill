@@ -444,8 +444,11 @@ class TestGrazerClientIntegration:
         videos = [make_video()]
         resp = mock_response({"videos": videos})
 
-        # Mock all network calls to avoid external requests during tests
-        with patch.object(client.session, "get", return_value=resp), \
+        # Mock all network calls to avoid external requests during tests.
+        # GrazerClient's own platforms go through _request_with_backoff ->
+        # session.request, not session.get (patching .get here was a no-op
+        # that let bottube/moltbook/agentchan/... hit the live internet).
+        with patch.object(client.session, "request", return_value=resp), \
              patch.object(client._arxiv.session, "get", return_value=mock_response({"entries": []})), \
              patch.object(client._youtube.session, "get", return_value=mock_response({})), \
              patch.object(client._podcast.session, "get", return_value=mock_response({})), \
@@ -458,6 +461,7 @@ class TestGrazerClientIntegration:
             result = client.discover_all(limit=1)
 
         assert "bottube" in result
+        assert len(result["bottube"]) == 1
 
     def test_bottube_grazer_importable_from_grazer(self):
         """BoTTubeGrazer must be importable from the grazer package."""

@@ -331,7 +331,9 @@ def test_discover_all_includes_new_platforms():
                                 # Patch remaining platforms to avoid network
                                 for m in ["discover_fourclaw", "discover_pinchedin", "discover_clawtasks",
                                            "discover_clawnews", "discover_directory", "discover_agentchan",
-                                           "discover_colony", "discover_moltx", "discover_moltexchange"]:
+                                           "discover_colony", "discover_moltx", "discover_moltexchange",
+                                           "discover_bluesky", "discover_farcaster", "discover_semantic_scholar",
+                                           "discover_openreview", "discover_mastodon", "discover_nostr"]:
                                     setattr(client, m, Mock(return_value=[]))
                                 result = client.discover_all(limit=5)
 

@@ -396,15 +396,18 @@ def test_client_discover_all_includes_new_platforms():
     """discover_all result dict includes all 6 new platform keys."""
     client = GrazerClient()
 
-    # Mock all session.get calls to return empty results
+    # Mock every HTTP call to return empty results. Session.request is the
+    # common path: the plugin grazers call session.get (which delegates to
+    # request) and GrazerClient's own platforms call session.request directly.
     mock_resp = Mock()
     mock_resp.json.return_value = {}
     mock_resp.raise_for_status = Mock()
     mock_resp.status_code = 200
+    mock_resp.ok = True
+    mock_resp.headers = {}
 
-    with patch("requests.Session.get", return_value=mock_resp):
-        with patch("requests.Session.post", return_value=mock_resp):
-            results = client.discover_all(limit=1)
+    with patch("requests.Session.request", return_value=mock_resp):
+        results = client.discover_all(limit=1)
 
     # All 6 new platforms should be present as keys
     for platform in ["bluesky", "farcaster", "semantic_scholar", "openreview", "mastodon", "nostr"]:

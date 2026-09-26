@@ -49,16 +49,14 @@ def test_import_makes_no_network_calls(no_network):
             del sys.modules[name]
         sys.modules.update(saved)
 
-
-def test_grazer_modules_are_not_split_after_reimport():
-    """Regression: the reimport above must not leave a second grazer.cli behind.
-
-    Runs after test_import_makes_no_network_calls (file order). The module
-    objects other tests imported at collection time must still be the ones
-    that patch("grazer.cli.X") resolves to.
-    """
+    # Regression (checked here, not in a separate test, so it does not depend
+    # on test order): the reimport must not leave a second grazer.cli behind.
+    # The module objects other tests imported at collection time must still be
+    # the ones that patch("grazer.cli.X") resolves to.
     assert sys.modules["grazer.cli"] is _CLI_AT_COLLECTION
     assert sys.modules["grazer"].cli is _CLI_AT_COLLECTION
+    for name, mod in saved.items():
+        assert sys.modules[name] is mod, f"{name} was replaced by a fresh copy"
 
 
 def test_constructing_client_makes_no_network_calls(no_network):

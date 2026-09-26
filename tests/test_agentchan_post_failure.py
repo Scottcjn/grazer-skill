@@ -38,7 +38,6 @@ def _run(result, cache_path):
     out, err = io.StringIO(), io.StringIO()
     with patch("grazer.cli.load_config", return_value={}), \
             patch("grazer.cli._make_client", return_value=client), \
-            patch("grazer.cli.GrazerClient", return_value=client), \
             patch("grazer.cli._idempotency_cache_path", return_value=cache_path), \
             redirect_stdout(out), redirect_stderr(err):
         try:
@@ -70,6 +69,21 @@ def test_successful_agentchan_post_marks_key(tmp_path):
     cache = tmp_path / "keys.json"
     _, code, _ = _run({"data": {"id": 42}}, cache)
     assert code in (0, None)
+
+    client, _, output = _run({"data": {"id": 43}}, cache)
+    client.post_agentchan.assert_not_called()
+    assert "Idempotency hit" in output
+
+
+@pytest.mark.parametrize("empty_body", [{}, []])
+def test_empty_2xx_body_counts_as_sent_and_marks_key(tmp_path, empty_body):
+    """post_agentchan returns resp.json() on any 2xx, so a falsy body is a
+    delivered post. It must exit 0 and record the key, otherwise an automated
+    retry with the same key would create a duplicate thread."""
+    cache = tmp_path / "keys.json"
+    _, code, output = _run(empty_body, cache)
+    assert code in (0, None)
+    assert "Failed to post on AgentChan" not in output
 
     client, _, output = _run({"data": {"id": 43}}, cache)
     client.post_agentchan.assert_not_called()
