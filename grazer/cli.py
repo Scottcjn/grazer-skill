@@ -4,12 +4,19 @@ Grazer CLI for Python
 """
 
 import argparse
+import contextlib
 import json
 import os
 import sys
+import tempfile
 import time
 from pathlib import Path
 from typing import Optional
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - Windows fallback keeps the helpers usable.
+    fcntl = None
 
 from grazer import GrazerClient, PLATFORMS, __version__
 from grazer.export import export_discovery
@@ -131,7 +138,27 @@ def _load_idempotency_cache(path: Optional[Path] = None) -> dict:
 def _save_idempotency_cache(cache: dict, path: Optional[Path] = None) -> None:
     cache_path = path or _idempotency_cache_path()
     cache_path.parent.mkdir(parents=True, exist_ok=True)
-    cache_path.write_text(json.dumps(cache, indent=2, sort_keys=True))
+    payload = json.dumps(cache, indent=2, sort_keys=True)
+    with tempfile.NamedTemporaryFile("w", dir=cache_path.parent, delete=False) as tmp:
+        tmp.write(payload)
+        tmp_path = Path(tmp.name)
+    os.replace(tmp_path, cache_path)
+
+
+@contextlib.contextmanager
+def _idempotency_cache_lock(path: Optional[Path] = None):
+    """Serialize idempotency cache updates across concurrent Grazer processes."""
+    cache_path = path or _idempotency_cache_path()
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = cache_path.with_suffix(cache_path.suffix + ".lock")
+    with lock_path.open("a+") as lock_file:
+        if fcntl is not None:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            if fcntl is not None:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 def _cleanup_idempotency_cache(cache: dict, ttl_seconds: int, now_ts: Optional[float] = None) -> dict:
@@ -143,22 +170,69 @@ def _cleanup_idempotency_cache(cache: dict, ttl_seconds: int, now_ts: Optional[f
     return cleaned
 
 
-def _idempotency_is_duplicate(scope: str, key: Optional[str], ttl_seconds: int) -> bool:
+def _idempotency_reserve(scope: str, key: Optional[str], ttl_seconds: int, path: Optional[Path] = None) -> bool:
+    """Atomically reserve an idempotency key before a side effect is sent.
+
+    Returns True when this process won the reservation, False when another
+    process already reserved or completed the same scope:key within the TTL.
+    """
     if not key:
-        return False
-    cache = _load_idempotency_cache()
-    cache = _cleanup_idempotency_cache(cache, ttl_seconds)
-    _save_idempotency_cache(cache)
-    return f"{scope}:{key}" in cache
+        return True
+    cache_key = f"{scope}:{key}"
+    with _idempotency_cache_lock(path):
+        cache = _load_idempotency_cache(path) if path is not None else _load_idempotency_cache()
+        cache = _cleanup_idempotency_cache(cache, ttl_seconds)
+        if cache_key in cache:
+            if path is not None:
+                _save_idempotency_cache(cache, path)
+            else:
+                _save_idempotency_cache(cache)
+            return False
+        cache[cache_key] = time.time()
+        if path is not None:
+            _save_idempotency_cache(cache, path)
+        else:
+            _save_idempotency_cache(cache)
+        return True
+
+
+def _idempotency_forget(scope: str, key: Optional[str], ttl_seconds: int, path: Optional[Path] = None) -> None:
+    """Remove a pre-send reservation after the provider call fails."""
+    if not key:
+        return
+    cache_key = f"{scope}:{key}"
+    with _idempotency_cache_lock(path):
+        cache = _load_idempotency_cache(path) if path is not None else _load_idempotency_cache()
+        cache = _cleanup_idempotency_cache(cache, ttl_seconds)
+        cache.pop(cache_key, None)
+        if path is not None:
+            _save_idempotency_cache(cache, path)
+        else:
+            _save_idempotency_cache(cache)
+
+
+def _idempotency_is_duplicate(scope: str, key: Optional[str], ttl_seconds: int) -> bool:
+    return not _idempotency_reserve(scope, key, ttl_seconds)
 
 
 def _idempotency_mark(scope: str, key: Optional[str], ttl_seconds: int) -> None:
     if not key:
         return
-    cache = _load_idempotency_cache()
-    cache = _cleanup_idempotency_cache(cache, ttl_seconds)
-    cache[f"{scope}:{key}"] = time.time()
-    _save_idempotency_cache(cache)
+    _idempotency_reserve(scope, key, ttl_seconds)
+
+
+def _run_idempotent_send(scope: str, key: Optional[str], ttl_seconds: int, send_fn):
+    """Reserve before a provider side effect and roll back only if it raises."""
+    if _idempotency_is_duplicate(scope, key, ttl_seconds):
+        print(f"\n⚠️  Idempotency hit: skipped duplicate send (key={key})")
+        return None
+    try:
+        result = send_fn()
+    except Exception:
+        _idempotency_forget(scope, key, ttl_seconds)
+        raise
+    _idempotency_mark(scope, key, ttl_seconds)
+    return result
 
 
 def _maybe_export(args, data) -> None:
@@ -640,11 +714,12 @@ def cmd_comment(args):
         if getattr(args, "dry_run", False):
             _print_dry_run_preview("clawcities", payload, text_value=args.message)
             return
-        if _idempotency_is_duplicate(scope, key, ttl_seconds):
-            print(f"\n⚠️  Idempotency hit: skipped duplicate send (key={key})")
+        result = _run_idempotent_send(
+            scope, key, ttl_seconds,
+            lambda: client.comment_clawcities(args.target, args.message),
+        )
+        if result is None:
             return
-        result = client.comment_clawcities(args.target, args.message)
-        _idempotency_mark(scope, key, ttl_seconds)
         print(f"\n✓ Comment posted to {args.target}")
         print(f"  ID: {result.get('comment', {}).get('id')}")
 
@@ -654,11 +729,12 @@ def cmd_comment(args):
         if getattr(args, "dry_run", False):
             _print_dry_run_preview("clawsta", payload, text_value=args.message, media_meta={"kind": "image", "source": "default_og_banner"})
             return
-        if _idempotency_is_duplicate(scope, key, ttl_seconds):
-            print(f"\n⚠️  Idempotency hit: skipped duplicate send (key={key})")
+        result = _run_idempotent_send(
+            scope, key, ttl_seconds,
+            lambda: client.post_clawsta(args.message),
+        )
+        if result is None:
             return
-        result = client.post_clawsta(args.message)
-        _idempotency_mark(scope, key, ttl_seconds)
         print(f"\n✓ Posted to Clawsta")
         print(f"  ID: {result.get('id')}")
 
@@ -669,11 +745,12 @@ def cmd_comment(args):
             if getattr(args, "dry_run", False):
                 _print_dry_run_preview("pinchedin", payload, text_value=args.message)
                 return
-            if _idempotency_is_duplicate(scope, key, ttl_seconds):
-                print(f"\n⚠️  Idempotency hit: skipped duplicate send (key={key})")
+            result = _run_idempotent_send(
+                scope, key, ttl_seconds,
+                lambda: client.comment_pinchedin(args.target, args.message),
+            )
+            if result is None:
                 return
-            result = client.comment_pinchedin(args.target, args.message)
-            _idempotency_mark(scope, key, ttl_seconds)
             print(f"\n✓ Comment posted on PinchedIn post {args.target[:8]}...")
             print(f"  ID: {result.get('id', 'ok')}")
         else:
@@ -687,11 +764,12 @@ def cmd_comment(args):
             if getattr(args, "dry_run", False):
                 _print_dry_run_preview("fourclaw", payload, text_value=args.message)
                 return
-            if _idempotency_is_duplicate(scope, key, ttl_seconds):
-                print(f"\n⚠️  Idempotency hit: skipped duplicate send (key={key})")
+            result = _run_idempotent_send(
+                scope, key, ttl_seconds,
+                lambda: client.reply_fourclaw(args.target, args.message),
+            )
+            if result is None:
                 return
-            result = client.reply_fourclaw(args.target, args.message)
-            _idempotency_mark(scope, key, ttl_seconds)
             print(f"\n✓ Reply posted to thread {args.target[:8]}...")
             print(f"  ID: {result.get('reply', {}).get('id', 'ok')}")
         else:
@@ -705,11 +783,12 @@ def cmd_comment(args):
             if getattr(args, "dry_run", False):
                 _print_dry_run_preview("thecolony", payload, text_value=args.message)
                 return
-            if _idempotency_is_duplicate(scope, key, ttl_seconds):
-                print(f"\n⚠️  Idempotency hit: skipped duplicate send (key={key})")
+            result = _run_idempotent_send(
+                scope, key, ttl_seconds,
+                lambda: client.reply_colony(args.target, args.message),
+            )
+            if result is None:
                 return
-            result = client.reply_colony(args.target, args.message)
-            _idempotency_mark(scope, key, ttl_seconds)
             print(f"\n✓ Reply posted to Colony post {args.target[:8]}...")
             print(f"  ID: {result.get('id', 'ok')}")
         else:
@@ -762,14 +841,15 @@ def cmd_post(args):
         if getattr(args, "dry_run", False):
             _print_dry_run_preview("fourclaw", payload, text_value=args.message, media_meta=media_meta)
             return
-        if _idempotency_is_duplicate(scope, key, ttl_seconds):
-            print(f"\n⚠️  Idempotency hit: skipped duplicate send (key={key})")
-            return
-        result = client.post_fourclaw(
-            args.board, args.title, args.message,
-            image_prompt=image_prompt, template=template, palette=palette,
+        result = _run_idempotent_send(
+            scope, key, ttl_seconds,
+            lambda: client.post_fourclaw(
+                args.board, args.title, args.message,
+                image_prompt=image_prompt, template=template, palette=palette,
+            ),
         )
-        _idempotency_mark(scope, key, ttl_seconds)
+        if result is None:
+            return
         thread = result.get("thread", {})
         print(f"\n✓ Thread created on /{args.board}/")
         print(f"  Title: {thread.get('title')}")
@@ -783,11 +863,12 @@ def cmd_post(args):
         if getattr(args, "dry_run", False):
             _print_dry_run_preview("moltbook", payload, text_value=args.message)
             return
-        if _idempotency_is_duplicate(scope, key, ttl_seconds):
-            print(f"\n⚠️  Idempotency hit: skipped duplicate send (key={key})")
+        result = _run_idempotent_send(
+            scope, key, ttl_seconds,
+            lambda: client.post_moltbook(args.message, args.title, submolt=args.board or "tech"),
+        )
+        if result is None:
             return
-        result = client.post_moltbook(args.message, args.title, submolt=args.board or "tech")
-        _idempotency_mark(scope, key, ttl_seconds)
         print(f"\n✓ Posted to m/{args.board or 'tech'}")
         print(f"  ID: {result.get('id', 'ok')}")
 
@@ -797,11 +878,12 @@ def cmd_post(args):
         if getattr(args, "dry_run", False):
             _print_dry_run_preview("pinchedin", payload, text_value=args.message)
             return
-        if _idempotency_is_duplicate(scope, key, ttl_seconds):
-            print(f"\n⚠️  Idempotency hit: skipped duplicate send (key={key})")
+        result = _run_idempotent_send(
+            scope, key, ttl_seconds,
+            lambda: client.post_pinchedin(args.message),
+        )
+        if result is None:
             return
-        result = client.post_pinchedin(args.message)
-        _idempotency_mark(scope, key, ttl_seconds)
         print(f"\n✓ Posted to PinchedIn")
         print(f"  ID: {result.get('id', 'ok')}")
 
@@ -812,11 +894,12 @@ def cmd_post(args):
         if getattr(args, "dry_run", False):
             _print_dry_run_preview("clawtasks", payload, text_value=args.message)
             return
-        if _idempotency_is_duplicate(scope, key, ttl_seconds):
-            print(f"\n⚠️  Idempotency hit: skipped duplicate send (key={key})")
+        result = _run_idempotent_send(
+            scope, key, ttl_seconds,
+            lambda: client.post_clawtask(args.title, args.message, tags=tags),
+        )
+        if result is None:
             return
-        result = client.post_clawtask(args.title, args.message, tags=tags)
-        _idempotency_mark(scope, key, ttl_seconds)
         print(f"\n✓ Bounty posted on ClawTasks")
         print(f"  ID: {result.get('id', 'ok')}")
 
@@ -827,11 +910,12 @@ def cmd_post(args):
         if getattr(args, "dry_run", False):
             _print_dry_run_preview("agentchan", payload, text_value=args.message)
             return
-        if _idempotency_is_duplicate(scope, key, ttl_seconds):
-            print(f"\n⚠️  Idempotency hit: skipped duplicate send (key={key})")
+        result = _run_idempotent_send(
+            scope, key, ttl_seconds,
+            lambda: client.post_agentchan(board=board, content=args.message),
+        )
+        if result is None:
             return
-        result = client.post_agentchan(board=board, content=args.message)
-        _idempotency_mark(scope, key, ttl_seconds)
         if result:
             print(f"\n✓ Thread posted on AgentChan /{board}/")
             print(f"  ID: {result.get('data', {}).get('id', result.get('id', 'ok'))}")
@@ -845,11 +929,12 @@ def cmd_post(args):
         if getattr(args, "dry_run", False):
             _print_dry_run_preview("thecolony", payload, text_value=args.message)
             return
-        if _idempotency_is_duplicate(scope, key, ttl_seconds):
-            print(f"\n⚠️  Idempotency hit: skipped duplicate send (key={key})")
+        result = _run_idempotent_send(
+            scope, key, ttl_seconds,
+            lambda: client.post_colony(colony, args.message),
+        )
+        if result is None:
             return
-        result = client.post_colony(colony, args.message)
-        _idempotency_mark(scope, key, ttl_seconds)
         print(f"\n✓ Posted to c/{colony} on The Colony")
         print(f"  ID: {result.get('id', 'ok')}")
 
@@ -859,11 +944,12 @@ def cmd_post(args):
         if getattr(args, "dry_run", False):
             _print_dry_run_preview("moltx", payload, text_value=args.message)
             return
-        if _idempotency_is_duplicate(scope, key, ttl_seconds):
-            print(f"\n⚠️  Idempotency hit: skipped duplicate send (key={key})")
+        result = _run_idempotent_send(
+            scope, key, ttl_seconds,
+            lambda: client.post_moltx(args.message),
+        )
+        if result is None:
             return
-        result = client.post_moltx(args.message)
-        _idempotency_mark(scope, key, ttl_seconds)
         print(f"\n✓ Posted to MoltX")
         print(f"  ID: {result.get('id', 'ok')}")
 
@@ -874,11 +960,12 @@ def cmd_post(args):
         if getattr(args, "dry_run", False):
             _print_dry_run_preview("moltexchange", payload, text_value=args.message)
             return
-        if _idempotency_is_duplicate(scope, key, ttl_seconds):
-            print(f"\n⚠️  Idempotency hit: skipped duplicate send (key={key})")
+        result = _run_idempotent_send(
+            scope, key, ttl_seconds,
+            lambda: client.post_moltexchange(args.title, args.message, tags=tags),
+        )
+        if result is None:
             return
-        result = client.post_moltexchange(args.title, args.message, tags=tags)
-        _idempotency_mark(scope, key, ttl_seconds)
         print(f"\n✓ Question posted on MoltExchange")
         print(f"  ID: {result.get('id', 'ok')}")
 
