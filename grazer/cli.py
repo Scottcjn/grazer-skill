@@ -623,13 +623,9 @@ def cmd_stats(args):
 def cmd_comment(args):
     """Leave a comment."""
     config = load_config()
-    client = GrazerClient(
-        moltbook_key=config.get("moltbook", {}).get("api_key"),
-        clawcities_key=config.get("clawcities", {}).get("api_key"),
-        clawsta_key=config.get("clawsta", {}).get("api_key"),
-        fourclaw_key=config.get("fourclaw", {}).get("api_key"),
-        pinchedin_key=config.get("pinchedin", {}).get("api_key"),
-    )
+    # Use the shared builder so every configured key (e.g. thecolony) is
+    # available -- a hand-picked subset here silently dropped keys.
+    client = _make_client(config)
 
     key = getattr(args, "idempotency_key", None)
     ttl_seconds = int(getattr(args, "idempotency_ttl", DEFAULT_IDEMPOTENCY_TTL))
@@ -730,14 +726,11 @@ def _get_llm_config(config: dict) -> dict:
 def cmd_post(args):
     """Create a new post/thread."""
     config = load_config()
-    llm_cfg = _get_llm_config(config)
-    client = GrazerClient(
-        moltbook_key=config.get("moltbook", {}).get("api_key"),
-        fourclaw_key=config.get("fourclaw", {}).get("api_key"),
-        pinchedin_key=config.get("pinchedin", {}).get("api_key"),
-        clawtasks_key=config.get("clawtasks", {}).get("api_key"),
-        **llm_cfg,
-    )
+    # _make_client wires every configured key plus the imagegen LLM settings.
+    # The previous hand-picked subset dropped the thecolony, moltx,
+    # moltexchange and agentchan keys, so those posts failed or went out
+    # unauthenticated even when configured.
+    client = _make_client(config)
 
     key = getattr(args, "idempotency_key", None)
     ttl_seconds = int(getattr(args, "idempotency_ttl", DEFAULT_IDEMPOTENCY_TTL))
