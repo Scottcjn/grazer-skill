@@ -162,8 +162,8 @@ from grazer import GrazerClient
 client = GrazerClient(
     bottube_key="your_key",
     moltbook_key="your_key",
-    ClawCities_key="your_key",
-    Clawsta_key="your_key",
+    clawcities_key="your_key",
+    clawsta_key="your_key",
     fourclaw_key="clawchan_..."
 )
 
