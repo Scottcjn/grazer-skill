@@ -105,7 +105,7 @@ grazer post -p fourclaw -b singularity -t "Title" -m "Content"
 # Reply to a 4claw thread
 grazer comment -p fourclaw -t THREAD_ID -m "Reply"
 
-# Discover across all 24 platforms
+# Discover across every provider in the discover-all set (22; see below)
 grazer discover -p all
 
 # Get platform stats
@@ -136,6 +136,25 @@ grazer clawhub search "social media" --limit 5
 grazer clawhub info grazer
 ```
 
+### What `all` covers
+
+Grazer ships **24 platform integrations**. `grazer discover -p all` and the
+Python `GrazerClient.discover_all()` (the CLI calls it directly) traverse
+**22** of them. The result dict has one key per provider below, plus `_errors`
+(and `_health` / `_canonical` when requested):
+
+`bottube`, `moltbook`, `clawcities`, `clawsta`, `fourclaw`, `pinchedin`,
+`clawtasks`, `clawnews`, `directory`, `agentchan`, `thecolony`, `moltx`,
+`moltexchange`, `arxiv`, `youtube`, `podcasts`, `bluesky`, `farcaster`,
+`semantic_scholar`, `openreview`, `mastodon`, `nostr`
+
+The other two integrations are **not** part of discover-all and use dedicated
+paths:
+
+- **ClawHub** (skill registry): `grazer clawhub search|trending|info`, or
+  `search_clawhub()` / `trending_clawhub()` / `get_clawhub_skill()` in Python.
+- **SwarmHub** (agent directory): `discover_swarmhub()` in Python.
+
 ### Python API
 ```python
 from grazer import GrazerClient
@@ -162,7 +181,7 @@ threads = client.discover_fourclaw(board="singularity", limit=10)
 client.post_fourclaw("b", "Thread Title", "Content here")
 client.reply_fourclaw("thread-id", "Reply content")
 
-# Discover across all 24 platforms
+# Discover across the 22 providers in the discover-all set (see below)
 all_content = client.discover_all()
 ```
 

@@ -4,11 +4,11 @@ Multi-Platform Content Discovery for AI Agents
 
 ## Description
 
-Grazer is a skill that enables AI agents to discover, filter, and engage with content across **24 platforms** including BoTTube, Moltbook, Bluesky, Farcaster, Mastodon, Nostr, Semantic Scholar, OpenReview, ArXiv, YouTube, Podcasts, 4claw, ClawHub, The Colony, and more.
+Grazer is a skill that enables AI agents to discover, filter, and engage with content across **24 platform integrations** including BoTTube, Moltbook, Bluesky, Farcaster, Mastodon, Nostr, Semantic Scholar, OpenReview, ArXiv, YouTube, Podcasts, 4claw, ClawHub, The Colony, and more.
 
 ## Features
 
-- **Cross-Platform Discovery**: Browse 24 platforms in one call — social, academic, decentralized
+- **Cross-Platform Discovery**: Browse 22 providers in one call (`discover_all()` / `grazer discover -p all`) — social, academic, decentralized; ClawHub and SwarmHub use dedicated calls
 - **SVG Image Generation**: LLM-powered or template-based SVG art for 4claw posts
 - **ClawHub Integration**: Search, browse, and publish skills to the ClawHub registry
 - **Intelligent Filtering**: Quality scoring (0-1 scale) based on engagement, novelty, and relevance
@@ -81,7 +81,8 @@ client = GrazerClient(
     clawhub_token="clh_...",
 )
 
-# Discover content across all platforms
+# Discover content across the 22 discover-all providers
+# (ClawHub and SwarmHub are not included; use their dedicated calls)
 all_content = client.discover_all()
 
 # Browse 4claw boards
@@ -128,7 +129,7 @@ skill = client.get_clawhub_skill("grazer")
 ### CLI
 
 ```bash
-# Discover across all platforms
+# Discover across the 22 discover-all providers (excludes ClawHub, SwarmHub)
 grazer discover -p all
 
 # Browse 4claw /crypto/ board
