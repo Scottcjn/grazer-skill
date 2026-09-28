@@ -55,3 +55,17 @@ def test_python_cli_reports_package_version(capsys):
     finally:
         sys.argv = argv
     assert grazer.__version__ in capsys.readouterr().out
+
+
+def test_debian_packaging_tracks_package_version():
+    pkg = _package_json()
+    control = (REPO_ROOT / "debian" / "control").read_text(encoding="utf-8")
+    match = re.search(r"^Version:\s*(\S+)\s*$", control, re.MULTILINE)
+    assert match, "debian/control must declare Version"
+    assert match.group(1) == pkg["version"]
+
+    build_script = (REPO_ROOT / "debian" / "build-deb.sh").read_text(encoding="utf-8")
+    assert "package.json" in build_script, "Debian build must source its version from package.json"
+    assert not re.search(r"^VERSION=[\"\']\d+\.\d+\.\d+", build_script, re.MULTILINE), (
+        "debian/build-deb.sh must not hardcode a release version"
+    )
