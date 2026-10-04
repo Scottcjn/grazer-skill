@@ -145,6 +145,6 @@ def _normalize_event(item: dict) -> Dict:
         "kind": kind,
         "created_at": created_at,
         "hashtags": hashtags,
-        "url": f"https://nostr.band/note{event_id[:8]}" if event_id else "",
+        "url": f"https://nostr.band/note{event_id}" if event_id else "",
         "author_url": f"https://nostr.band/{pubkey}" if pubkey else "",
     }
