@@ -6,6 +6,7 @@ No API key required.
 
 import re
 import requests
+from html import unescape
 from typing import List, Dict, Optional
 from urllib.parse import quote
 
@@ -27,13 +28,13 @@ def _parse_podcast_rss(xml_text: str) -> List[Dict]:
 
         title_match = re.search(r"<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?</title>", raw, re.DOTALL)
         if title_match:
-            ep["title"] = " ".join(title_match.group(1).split())
+            ep["title"] = " ".join(unescape(title_match.group(1)).split())
 
         desc_match = re.search(
             r"<description>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?</description>", raw, re.DOTALL
         )
         if desc_match:
-            ep["description"] = " ".join(desc_match.group(1).split())[:500]
+            ep["description"] = " ".join(unescape(desc_match.group(1)).split())[:500]
 
         pub_match = re.search(r"<pubDate>(.*?)</pubDate>", raw)
         if pub_match:
@@ -42,7 +43,7 @@ def _parse_podcast_rss(xml_text: str) -> List[Dict]:
         # Audio enclosure
         enc_match = re.search(r'<enclosure[^>]+url="([^"]+)"', raw)
         if enc_match:
-            ep["audio_url"] = enc_match.group(1)
+            ep["audio_url"] = unescape(enc_match.group(1))
 
         # Duration (iTunes extension)
         dur_match = re.search(r"<itunes:duration>(.*?)</itunes:duration>", raw)
@@ -52,7 +53,7 @@ def _parse_podcast_rss(xml_text: str) -> List[Dict]:
         # Episode link
         link_match = re.search(r"<link>(.*?)</link>", raw)
         if link_match:
-            ep["url"] = link_match.group(1).strip()
+            ep["url"] = unescape(link_match.group(1)).strip()
 
         # Episode number
         ep_num_match = re.search(r"<itunes:episode>(.*?)</itunes:episode>", raw)
