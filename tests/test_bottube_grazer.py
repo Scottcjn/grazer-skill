@@ -154,18 +154,18 @@ class TestTrending:
 
         assert len(result) == 3
 
-    def test_trending_uses_trending_category(self):
-        """trending() should pass category=trending to the API."""
+    def test_trending_uses_ranked_endpoint(self):
+        """#383: trending() must call the ranked /trending operation."""
         g = BoTTubeGrazer()
         resp = mock_response({"videos": []})
 
         with patch.object(g.session, "get", return_value=resp) as mock_get:
             g.trending(limit=5)
 
-        call_args = mock_get.call_args
-        # params should include category=trending
-        params = call_args.kwargs.get("params", {})
-        assert params.get("category") == "trending"
+        url = mock_get.call_args.args[0]
+        assert url.endswith("/trending")
+        # and must not route through the plain listing filter
+        assert "category" not in (mock_get.call_args.kwargs.get("params") or {})
 
 
 class TestNewUploads:
@@ -467,3 +467,44 @@ class TestGrazerClientIntegration:
         """BoTTubeGrazer must be importable from the grazer package."""
         from grazer.bottube_grazer import BoTTubeGrazer as BG
         assert BG is not None
+
+
+# ── #383: API-drift regression (live endpoint probes) ─────────
+
+
+class TestApiDrift383:
+    """The live BoTTube API drifted from the paths this plugin assumed."""
+
+    def test_search_hits_canonical_search_endpoint(self):
+        """#383: /videos/search 404s; search() must call /search."""
+        g = BoTTubeGrazer()
+        resp = mock_response({"videos": []})
+        with patch.object(g.session, "get", return_value=resp) as mock_get:
+            g.search("rustchain", limit=3)
+        url = mock_get.call_args.args[0]
+        assert url.endswith("/api/search")
+        assert "/videos/search" not in url
+
+    def test_trending_does_not_use_listing_category(self):
+        """#383: category=trending returns the newest video, not ranked ones."""
+        g = BoTTubeGrazer()
+        resp = mock_response({"videos": []})
+        with patch.object(g.session, "get", return_value=resp) as mock_get:
+            g.trending(limit=3)
+        url = mock_get.call_args.args[0]
+        assert url.endswith("/api/trending")
+        assert (mock_get.call_args.kwargs.get("params") or {}).get("category") is None
+
+    def test_normalize_stream_url_uses_public_video_id(self):
+        """#383: stream URL must use video_id, not the numeric DB id."""
+        g = BoTTubeGrazer()
+        row = g._normalize({"id": 1384, "video_id": "ow8D4D8migp", "title": "x"})
+        assert row["stream_url"] == "https://bottube.ai/api/videos/ow8D4D8migp/stream"
+        assert row["url"] == "https://bottube.ai/video/ow8D4D8migp"
+        assert row["video_id"] == "ow8D4D8migp"
+
+    def test_normalize_falls_back_to_id_when_no_public_id(self):
+        """Legacy/partial payloads without video_id keep working."""
+        g = BoTTubeGrazer()
+        row = g._normalize({"id": "abc123"})
+        assert "abc123" in row["stream_url"]

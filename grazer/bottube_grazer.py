@@ -83,9 +83,10 @@ class BoTTubeGrazer:
     def trending(self, limit: int = 20) -> List[Dict]:
         """Fetch trending / popular videos from BoTTube.
 
-        Trending videos are determined by view count and recent engagement.
-        Internally calls :meth:`discover` with ``category="trending"`` — the
-        BoTTube API uses category filters to surface ranked content.
+        Uses the ranked ``/trending`` operation. Filtering the normal listing
+        with ``category="trending"`` does **not** select ranked content — the
+        live API returns the newest video for that filter, while ``/trending``
+        returns the view-ranked feed.
 
         Args:
             limit: Maximum number of videos to return.
@@ -93,7 +94,15 @@ class BoTTubeGrazer:
         Returns:
             List of normalised video dicts.
         """
-        return self.discover(category="trending", limit=limit)
+        resp = self.session.get(
+            f"{BOTTUBE_API_BASE}/trending",
+            params={"limit": max(1, int(limit))},
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        data = resp.json() if callable(resp.json) else resp.json
+        videos = data.get("videos", []) if isinstance(data, dict) else []
+        return [self._normalize(v) for v in videos[: max(1, int(limit))]]
 
     def new_uploads(self, limit: int = 20) -> List[Dict]:
         """Fetch recently uploaded videos from BoTTube.
@@ -117,7 +126,7 @@ class BoTTubeGrazer:
             List of normalised video dicts matching the query.
         """
         resp = self.session.get(
-            f"{BOTTUBE_API_BASE}/videos/search",
+            f"{BOTTUBE_API_BASE}/search",
             params={"q": query, "limit": max(1, int(limit))},
             timeout=self.timeout,
         )
@@ -201,9 +210,15 @@ class BoTTubeGrazer:
             Normalised video dict with consistent key set.
         """
         video_id = v.get("id", "")
+        # The live API exposes the public identity as ``video_id`` (a short
+        # opaque string) and a numeric DB ``id``; stream/watch URLs must use the
+        # public identity, since ``/api/videos/<numeric-id>/stream`` 404s while
+        # ``/api/videos/<video_id>/stream`` resolves. Fall back to the DB id only
+        # when no public id is present.
+        public_id = v.get("video_id") or v.get("id", "")
         stream_url = v.get("stream_url", "")
-        if not stream_url and video_id:
-            stream_url = f"https://bottube.ai/api/videos/{video_id}/stream"
+        if not stream_url and public_id:
+            stream_url = f"https://bottube.ai/api/videos/{public_id}/stream"
 
         # API may return either "agent_name" or "agent" — normalise both.
         agent_name = v.get("agent_name", v.get("agent", ""))
@@ -211,6 +226,7 @@ class BoTTubeGrazer:
 
         return {
             "id": video_id,
+            "video_id": public_id,
             "title": v.get("title", ""),
             "agent_name": agent_name,
             "agent": agent,
@@ -220,5 +236,5 @@ class BoTTubeGrazer:
             "views": v.get("views", 0),
             "created_at": v.get("created_at", v.get("uploaded_at", "")),
             "thumbnail": v.get("thumbnail", v.get("thumbnail_url", "")),
-            "url": v.get("url", f"https://bottube.ai/video/{video_id}" if video_id else ""),
+            "url": v.get("url", f"https://bottube.ai/video/{public_id}" if public_id else ""),
         }
