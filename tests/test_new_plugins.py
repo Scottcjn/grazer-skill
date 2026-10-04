@@ -412,3 +412,34 @@ def test_client_discover_all_includes_new_platforms():
     # All 6 new platforms should be present as keys
     for platform in ["bluesky", "farcaster", "semantic_scholar", "openreview", "mastodon", "nostr"]:
         assert platform in results, f"Missing platform key: {platform}"
+
+
+def test_openreview_discover_uses_term_param():
+    """#387: the v2 search op needs `term`; `query` returns HTTP 400."""
+    grazer = OpenReviewGrazer(timeout=5)
+    mock_resp = Mock()
+    mock_resp.json.return_value = {"notes": [SAMPLE_NOTE]}
+    mock_resp.raise_for_status = Mock()
+
+    with patch.object(grazer.session, "get", return_value=mock_resp) as mock_get:
+        grazer.discover(query="large language models", limit=3)
+
+    params = mock_get.call_args.kwargs.get("params", {})
+    assert params.get("term") == "large language models"
+    assert "query" not in params
+    assert mock_get.call_args.args[0].endswith("/notes/search")
+
+
+def test_openreview_discover_venue_uses_content_venue():
+    """#387: venue filter is passed as content.venue alongside term."""
+    grazer = OpenReviewGrazer(timeout=5)
+    mock_resp = Mock()
+    mock_resp.json.return_value = {"notes": []}
+    mock_resp.raise_for_status = Mock()
+
+    with patch.object(grazer.session, "get", return_value=mock_resp) as mock_get:
+        grazer.discover(query="llm", venue="ICLR.cc/2025/Conference", limit=3)
+
+    params = mock_get.call_args.kwargs.get("params", {})
+    assert params.get("term") == "llm"
+    assert params.get("content.venue") == "ICLR.cc/2025/Conference"

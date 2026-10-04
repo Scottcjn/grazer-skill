@@ -37,8 +37,9 @@ class OpenReviewGrazer:
         Returns:
             List of paper dicts
         """
+        # The v2 search operation expects ``term`` (``query`` returns HTTP 400).
         params = {
-            "query": query,
+            "term": query,
             "limit": min(limit, 1000),
         }
         if venue:
