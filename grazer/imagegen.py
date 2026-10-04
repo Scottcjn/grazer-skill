@@ -135,11 +135,17 @@ def sanitize_svg_text(text: str) -> str:
 
 
 def _truncate(text: str, maxlen: int) -> str:
-    """XML-safe truncation using sanitize_svg_text()."""
-    text = sanitize_svg_text(text)
+    """XML-safe truncation using sanitize_svg_text().
+
+    Truncation must never cut an XML entity in half: escaping first and then
+    slicing the encoded string can leave a dangling ``&``/``&amp`` at the
+    cutoff (e.g. ``'x'*18 + '&y'`` ends up as ``...x&~``), which makes the
+    whole SVG not well-formed. Trim the *plain* text first, then escape, so
+    every emitted entity stays complete.
+    """
     if len(text) > maxlen:
-        return text[:maxlen - 1] + "~"
-    return text
+        text = text[:maxlen - 1] + "~"
+    return sanitize_svg_text(text)
 
 
 def _hash_seed(text: str) -> int:
