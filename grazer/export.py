@@ -69,6 +69,17 @@ def _export_payload(platform: str, data: Any) -> Dict[str, Any]:
     }
 
 
+def _non_empty_metadata(payload: Dict[str, Any]) -> Dict[str, Any]:
+    metadata = payload.get("metadata")
+    if not isinstance(metadata, dict):
+        return {}
+    return {
+        key: value
+        for key, value in metadata.items()
+        if value not in (None, {}, [], "")
+    }
+
+
 def _write_json(path: Path, platform: str, data: Any) -> None:
     path.write_text(
         json.dumps(_export_payload(platform, data), indent=2, ensure_ascii=False)
@@ -78,11 +89,18 @@ def _write_json(path: Path, platform: str, data: Any) -> None:
 
 
 def _write_csv(path: Path, platform: str, data: Any) -> None:
+    metadata = _non_empty_metadata(_export_payload(platform, data))
     rows: List[Dict[str, Any]] = []
     fields = {"platform"}
     for item_platform, item in _platform_items(platform, data):
         row = {"platform": item_platform}
         row.update({key: _serialize_cell(value) for key, value in item.items()})
+        if metadata:
+            row["_metadata"] = _serialize_cell(metadata)
+        rows.append(row)
+        fields.update(row)
+    if metadata and not rows:
+        row = {"platform": "_metadata", "_metadata": _serialize_cell(metadata)}
         rows.append(row)
         fields.update(row)
 
@@ -95,6 +113,7 @@ def _write_csv(path: Path, platform: str, data: Any) -> None:
 
 def _write_markdown(path: Path, platform: str, data: Any) -> None:
     payload = _export_payload(platform, data)
+    metadata = _non_empty_metadata(payload)
     lines = [
         "# Grazer Discovery Export",
         "",
@@ -103,6 +122,18 @@ def _write_markdown(path: Path, platform: str, data: Any) -> None:
         f"- Items: {payload['count']}",
         "",
     ]
+
+    if metadata:
+        lines.extend(
+            [
+                "## Metadata",
+                "",
+                "```json",
+                json.dumps(metadata, indent=2, ensure_ascii=False, sort_keys=True),
+                "```",
+                "",
+            ]
+        )
 
     grouped: Dict[str, List[Dict[str, Any]]] = {}
     for item_platform, item in _platform_items(platform, data):
