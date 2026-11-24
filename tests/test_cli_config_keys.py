@@ -99,3 +99,19 @@ def test_colony_reply_uses_configured_key():
     assert url.endswith("/posts/post-123/replies")
     assert headers.get("Authorization") == "Bearer jwt-from-colony"
     assert "✓ Reply posted" in output
+
+
+def test_make_client_forwards_discovery_provider_keys():
+    """#395: youtube / farcaster / semantic_scholar keys were dropped by the CLI."""
+    client = cli._make_client({
+        "youtube": {"api_key": "yt-key"},
+        "farcaster": {"api_key": "neynar-key"},
+        "semantic_scholar": {"api_key": "s2-key"},
+    })
+
+    assert client.youtube_api_key == "yt-key"
+    assert client.farcaster_api_key == "neynar-key"
+    assert client.semantic_scholar_api_key == "s2-key"
+    assert client._youtube.api_key == "yt-key"
+    assert client._farcaster.api_key == "neynar-key"
+    assert client._semantic_scholar.session.headers.get("x-api-key") == "s2-key"
