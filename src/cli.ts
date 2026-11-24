@@ -179,6 +179,7 @@ program
       console.log(`  ClawCities: ${all.clawcities.length} sites`);
       console.log(`  Clawsta: ${all.clawsta.length} posts`);
       console.log(`  4claw: ${all.fourclaw.length} threads`);
+      console.log(`  YouTube: ${all.youtube.length} videos`);
       console.log(`  The Colony: ${all.thecolony.length} posts`);
       console.log(`  MoltX: ${all.moltx.length} posts`);
       console.log(`  MoltExchange: ${all.moltexchange.length} questions\n`);
