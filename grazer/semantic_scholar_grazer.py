@@ -6,9 +6,24 @@ No API key required (rate limited to 100 requests per 5 minutes without key).
 
 import requests
 from typing import List, Dict, Optional
+from urllib.parse import quote
 
 
 S2_API_BASE = "https://api.semanticscholar.org/graph/v1"
+
+
+def _encode_s2_segment(value: str, field: str, *, allow_slash: bool = False) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field} must be a non-empty string")
+    cleaned = value.strip()
+    if allow_slash:
+        segments = cleaned.split("/")
+        if any(seg in ("", ".", "..") for seg in segments):
+            raise ValueError(f"{field} contains an invalid path segment")
+        return quote(cleaned, safe=":/")
+    if cleaned in (".", ".."):
+        raise ValueError(f"{field} must not be '.' or '..'")
+    return quote(cleaned, safe="")
 
 # Fields to request from the API
 PAPER_FIELDS = "paperId,title,abstract,authors,year,citationCount,referenceCount,url,venue,publicationDate,openAccessPdf"
@@ -65,7 +80,9 @@ class SemanticScholarGrazer:
         data = resp.json()
 
         papers = []
-        for item in data.get("data", []):
+        for item in (data.get("data") or []) if isinstance(data, dict) else []:
+            if not isinstance(item, dict):
+                continue
             paper = _normalize_paper(item)
             papers.append(paper)
 
@@ -81,8 +98,9 @@ class SemanticScholarGrazer:
         Returns:
             Paper dict or None if not found
         """
+        encoded_id = _encode_s2_segment(paper_id, "paper_id", allow_slash=True)
         resp = self.session.get(
-            f"{S2_API_BASE}/paper/{paper_id}",
+            f"{S2_API_BASE}/paper/{encoded_id}",
             params={"fields": PAPER_FIELDS + ",citations,references"},
             timeout=self.timeout,
         )
@@ -90,16 +108,22 @@ class SemanticScholarGrazer:
             return None
         resp.raise_for_status()
         data = resp.json()
+        if not isinstance(data, dict):
+            return None
 
         paper = _normalize_paper(data)
         # Add citation/reference lists for single-paper lookups
+        raw_citations = data.get("citations") or []
+        raw_references = data.get("references") or []
         paper["citations"] = [
-            _normalize_paper(c.get("citingPaper", c))
-            for c in data.get("citations", [])[:20]
+            _normalize_paper(c.get("citingPaper") or c)
+            for c in raw_citations[:20]
+            if isinstance(c, dict)
         ]
         paper["references"] = [
-            _normalize_paper(r.get("citedPaper", r))
-            for r in data.get("references", [])[:20]
+            _normalize_paper(r.get("citedPaper") or r)
+            for r in raw_references[:20]
+            if isinstance(r, dict)
         ]
         return paper
 
@@ -113,56 +137,61 @@ class SemanticScholarGrazer:
         Returns:
             Author dict with profile and papers, or None if not found
         """
+        encoded_author = _encode_s2_segment(author_id, "author_id", allow_slash=False)
         resp = self.session.get(
-            f"{S2_API_BASE}/author/{author_id}",
+            f"{S2_API_BASE}/author/{encoded_author}",
             params={"fields": AUTHOR_FIELDS},
             timeout=self.timeout,
         )
         if resp.status_code == 404:
             return None
         resp.raise_for_status()
-        author_data = resp.json()
+        author_data = resp.json() or {}
 
         # Fetch author's papers separately
         papers_resp = self.session.get(
-            f"{S2_API_BASE}/author/{author_id}/papers",
+            f"{S2_API_BASE}/author/{encoded_author}/papers",
             params={"fields": PAPER_FIELDS, "limit": min(limit, 100)},
             timeout=self.timeout,
         )
         papers = []
         if papers_resp.status_code == 200:
-            for item in papers_resp.json().get("data", []):
-                papers.append(_normalize_paper(item))
+            papers_json = papers_resp.json() or {}
+            for item in (papers_json.get("data") or []) if isinstance(papers_json, dict) else []:
+                if isinstance(item, dict):
+                    papers.append(_normalize_paper(item))
 
         return {
-            "author_id": author_data.get("authorId", ""),
-            "name": author_data.get("name", ""),
-            "paper_count": author_data.get("paperCount", 0),
-            "citation_count": author_data.get("citationCount", 0),
-            "h_index": author_data.get("hIndex", 0),
-            "url": author_data.get("url", f"https://www.semanticscholar.org/author/{author_id}"),
+            "author_id": author_data.get("authorId") or "",
+            "name": author_data.get("name") or "",
+            "paper_count": author_data.get("paperCount") or 0,
+            "citation_count": author_data.get("citationCount") or 0,
+            "h_index": author_data.get("hIndex") or 0,
+            "url": author_data.get("url") or f"https://www.semanticscholar.org/author/{encoded_author}",
             "papers": papers[:limit],
         }
 
 
 def _normalize_paper(item: dict) -> Dict:
     """Normalize a Semantic Scholar paper object into a consistent dict."""
-    authors_raw = item.get("authors", []) or []
+    if not isinstance(item, dict):
+        item = {}
+    authors_raw = item.get("authors") or []
     authors = [a.get("name", "") for a in authors_raw if isinstance(a, dict)]
 
     pdf_info = item.get("openAccessPdf") or {}
     pdf_url = pdf_info.get("url", "") if isinstance(pdf_info, dict) else ""
 
     return {
-        "paper_id": item.get("paperId", ""),
-        "title": item.get("title", "(untitled)"),
+        "paper_id": item.get("paperId") or "",
+        "title": item.get("title") or "(untitled)",
         "abstract": (item.get("abstract") or "")[:500],
         "authors": authors,
         "year": item.get("year"),
-        "citation_count": item.get("citationCount", 0),
-        "reference_count": item.get("referenceCount", 0),
-        "venue": item.get("venue", ""),
-        "published": item.get("publicationDate", ""),
-        "url": item.get("url", ""),
+        "citation_count": item.get("citationCount") or 0,
+        "reference_count": item.get("referenceCount") or 0,
+        "venue": item.get("venue") or "",
+        "published": item.get("publicationDate") or "",
+        "url": item.get("url") or "",
         "pdf_url": pdf_url,
     }
