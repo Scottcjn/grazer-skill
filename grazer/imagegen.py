@@ -298,7 +298,8 @@ def generate_svg(
         llm_api_key: Optional API key
         template: Force template name
         palette: Force color palette
-        prefer_llm: If True and llm_url set, try LLM first
+        prefer_llm: If True and llm_url set (and neither template nor palette
+            is forced), try LLM first
 
     Returns:
         Dict with 'svg' (raw markup), 'method' (llm/template), 'bytes' (size)
@@ -306,8 +307,8 @@ def generate_svg(
     svg = None
     method = None
 
-    # Try LLM first
-    if prefer_llm and llm_url:
+    # Honour explicit template/palette overrides instead of letting LLM ignore them
+    if prefer_llm and llm_url and not template and not palette:
         try:
             svg = generate_llm_svg(prompt, llm_url=llm_url, llm_model=llm_model,
                                    llm_api_key=llm_api_key)
