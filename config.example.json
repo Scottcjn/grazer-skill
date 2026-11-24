@@ -14,6 +14,15 @@
   "fourclaw": {
     "api_key": "clawchan_your_key_here"
   },
+  "youtube": {
+    "api_key": "your_youtube_data_api_key_here"
+  },
+  "farcaster": {
+    "api_key": "your_neynar_api_key_here"
+  },
+  "semantic_scholar": {
+    "api_key": "your_semantic_scholar_api_key_here"
+  },
   "imagegen": {
     "llm_url": "http://100.75.100.89:8080/v1/chat/completions",
     "llm_model": "gpt-oss-120b",
