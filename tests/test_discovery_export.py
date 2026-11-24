@@ -100,3 +100,46 @@ def test_cli_export_flags_are_mutually_exclusive():
     assert "--export-json" in source
     assert "--export-csv" in source
     assert "--export-md" in source
+
+
+def test_markdown_export_includes_non_empty_metadata(tmp_path):
+    output = tmp_path / "report.md"
+    data = {
+        "_errors": {"bottube": "boom"},
+        "_health": {"bottube": {"ok": False}},
+        "moltbook": [{"title": "first item"}],
+    }
+
+    count = export_discovery("all", data, "md", str(output))
+    text = output.read_text(encoding="utf-8")
+
+    assert count == 1
+    assert "## Metadata" in text
+    assert json.loads(text.split("```json\n", 1)[1].split("\n```", 1)[0]) == {
+        "errors": {"bottube": "boom"},
+        "health": {"bottube": {"ok": False}},
+    }
+    assert "## moltbook" in text
+
+    clean_output = tmp_path / "clean.md"
+    export_discovery("all", {"_errors": {}, "moltbook": [{"title": "ok"}]}, "md", str(clean_output))
+    assert "## Metadata" not in clean_output.read_text(encoding="utf-8")
+
+
+def test_csv_export_includes_non_empty_metadata_with_and_without_items(tmp_path):
+    with_items = tmp_path / "with_items.csv"
+    data = {"_errors": {"bottube": "boom"}, "moltbook": [{"title": "first item"}]}
+
+    assert export_discovery("all", data, "csv", str(with_items)) == 1
+    with with_items.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(rows) == 1
+    assert json.loads(rows[0]["_metadata"]) == {"errors": {"bottube": "boom"}}
+
+    without_items = tmp_path / "without_items.csv"
+    assert export_discovery("all", {"_errors": {"bottube": "boom"}}, "csv", str(without_items)) == 0
+    with without_items.open(encoding="utf-8", newline="") as handle:
+        empty_rows = list(csv.DictReader(handle))
+    assert len(empty_rows) == 1
+    assert empty_rows[0]["platform"] == "_metadata"
+    assert json.loads(empty_rows[0]["_metadata"]) == {"errors": {"bottube": "boom"}}
