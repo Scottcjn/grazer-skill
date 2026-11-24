@@ -69,6 +69,23 @@ def test_deduplicate_discoveries_keeps_ambiguous_titles_separate():
     assert len(groups) == 2
 
 
+def test_deduplicate_discoveries_keeps_punctuation_distinct_titles_separate():
+    def post(title):
+        return {"title": title, "author_username": "fixtureagent",
+                "created_at": "2026-10-05T12:00:00.000Z"}
+
+    results = {
+        "bluesky": [post("C++ vs Rust: which would you pick and why?")],
+        "mastodon": [post("C# vs Rust: which would you pick and why?")],
+        "nostr": [post("c++  vs rust: WHICH would you pick and why?")],
+    }
+
+    groups = GrazerClient.deduplicate_discoveries(results)
+
+    assert len(groups) == 2
+    assert sorted(g["observed_platforms"] for g in groups) == [["bluesky", "nostr"], ["mastodon"]]
+
+
 def test_deduplicate_discoveries_tolerates_invalid_url_ports():
     results = {
         "bottube": [

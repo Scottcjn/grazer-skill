@@ -142,6 +142,11 @@ def _normalize_identity_text(value: Any) -> str:
     return re.sub(r"\W+", " ", text, flags=re.UNICODE).strip()
 
 
+def _normalize_content_text(value: Any) -> str:
+    # Case and whitespace only: punctuation is significant ("C++" vs "C#").
+    return " ".join(_scalar_text(value).casefold().split())
+
+
 def _normalize_source_url(value: Any) -> str:
     raw = _scalar_text(value)
     if not raw:
@@ -207,7 +212,7 @@ def _canonical_source_keys(platform: str, item: Dict) -> List[str]:
         (
             normalized
             for field in _CONTENT_FIELDS
-            if (normalized := _normalize_identity_text(item.get(field)))
+            if (normalized := _normalize_content_text(item.get(field)))
         ),
         "",
     )
