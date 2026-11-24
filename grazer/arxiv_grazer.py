@@ -4,12 +4,13 @@ Discovers trending and recent papers from arXiv using the public Atom API.
 No API key required.
 """
 
+import html
 import re
 import requests
 from typing import List, Dict, Optional
 
 
-ARXIV_API_BASE = "http://export.arxiv.org/api/query"
+ARXIV_API_BASE = "https://export.arxiv.org/api/query"
 
 # Popular CS categories for AI agent discovery
 CATEGORIES = {
@@ -34,41 +35,54 @@ def _parse_atom_entries(xml_text: str) -> List[Dict]:
     """
     entries = []
     # Split on <entry> tags
-    raw_entries = re.findall(r"<entry>(.*?)</entry>", xml_text, re.DOTALL)
+    raw_entries = re.findall(r"<entry[^>]*>(.*?)</entry>", xml_text, re.DOTALL)
     for raw in raw_entries:
         paper: Dict = {}
 
-        # Extract fields via simple regex
-        id_match = re.search(r"<id>(.*?)</id>", raw)
+        # Extract fields via regex and unescape XML entities
+        id_match = re.search(r"<id[^>]*>(.*?)</id>", raw)
         if id_match:
-            paper["id"] = id_match.group(1).strip()
+            paper["id"] = html.unescape(id_match.group(1).strip())
             # Convert full URL to short arxiv ID
             paper["arxiv_id"] = paper["id"].rsplit("/abs/", 1)[-1]
 
-        title_match = re.search(r"<title>(.*?)</title>", raw, re.DOTALL)
+        title_match = re.search(r"<title[^>]*>(.*?)</title>", raw, re.DOTALL)
         if title_match:
-            paper["title"] = " ".join(title_match.group(1).split())
+            paper["title"] = html.unescape(" ".join(title_match.group(1).split()))
 
-        summary_match = re.search(r"<summary>(.*?)</summary>", raw, re.DOTALL)
+        summary_match = re.search(r"<summary[^>]*>(.*?)</summary>", raw, re.DOTALL)
         if summary_match:
-            paper["summary"] = " ".join(summary_match.group(1).split())
+            paper["summary"] = html.unescape(" ".join(summary_match.group(1).split()))
 
-        published_match = re.search(r"<published>(.*?)</published>", raw)
+        published_match = re.search(r"<published[^>]*>(.*?)</published>", raw)
         if published_match:
             paper["published"] = published_match.group(1).strip()
 
-        updated_match = re.search(r"<updated>(.*?)</updated>", raw)
+        updated_match = re.search(r"<updated[^>]*>(.*?)</updated>", raw)
         if updated_match:
             paper["updated"] = updated_match.group(1).strip()
 
         # Authors
-        authors = re.findall(r"<author>\s*<name>(.*?)</name>", raw)
+        authors = [
+            html.unescape(" ".join(a.split()))
+            for a in re.findall(r"<author[^>]*>\s*<name[^>]*>(.*?)</name>", raw, re.DOTALL)
+        ]
         paper["authors"] = authors
 
-        # PDF link
-        pdf_match = re.search(r'<link[^>]+title="pdf"[^>]+href="([^"]+)"', raw)
-        if pdf_match:
-            paper["pdf_url"] = pdf_match.group(1)
+        # PDF link (handle arbitrary attribute ordering between title/type and href)
+        pdf_url = None
+        for link_tag in re.findall(r"<link\b[^>]*>", raw):
+            is_pdf = (
+                re.search(r'''\btitle=["']pdf["']''', link_tag) is not None
+                or re.search(r'''\btype=["']application/pdf["']''', link_tag) is not None
+            )
+            if is_pdf:
+                href_match = re.search(r'''\bhref=["']([^"']+)["']''', link_tag)
+                if href_match:
+                    pdf_url = html.unescape(href_match.group(1))
+                    break
+        if pdf_url:
+            paper["pdf_url"] = pdf_url
         else:
             # Construct from ID
             paper["pdf_url"] = f"https://arxiv.org/pdf/{paper.get('arxiv_id', '')}"
@@ -76,7 +90,7 @@ def _parse_atom_entries(xml_text: str) -> List[Dict]:
         paper["url"] = f"https://arxiv.org/abs/{paper.get('arxiv_id', '')}"
 
         # Categories
-        cats = re.findall(r'<category[^>]+term="([^"]+)"', raw)
+        cats = re.findall(r'''<category[^>]+term=["']([^"']+)["']''', raw)
         paper["categories"] = cats
 
         entries.append(paper)
@@ -126,7 +140,7 @@ class ArxivGrazer:
         if not parts:
             parts.append("cat:cs.AI")
 
-        search_query = "+AND+".join(parts)
+        search_query = " AND ".join(parts)
 
         params = {
             "search_query": search_query,
