@@ -54,10 +54,12 @@ class FarcasterGrazer:
         data = resp.json()
 
         casts = []
-        result_field = data.get("result", data)
-        raw_casts = result_field.get("casts", []) if isinstance(result_field, dict) else []
+        result_field = data.get("result") or data
+        raw_casts = (result_field.get("casts") or []) if isinstance(result_field, dict) else []
 
         for item in raw_casts:
+            if not isinstance(item, dict):
+                continue
             cast = _normalize_cast(item)
             casts.append(cast)
 
@@ -85,7 +87,10 @@ class FarcasterGrazer:
         data = resp.json()
 
         casts = []
-        for item in data.get("casts", []):
+        raw_casts = (data.get("casts") or []) if isinstance(data, dict) else []
+        for item in raw_casts:
+            if not isinstance(item, dict):
+                continue
             cast = _normalize_cast(item)
             casts.append(cast)
 
@@ -115,7 +120,10 @@ class FarcasterGrazer:
         data = resp.json()
 
         casts = []
-        for item in data.get("casts", []):
+        raw_casts = (data.get("casts") or []) if isinstance(data, dict) else []
+        for item in raw_casts:
+            if not isinstance(item, dict):
+                continue
             cast = _normalize_cast(item)
             casts.append(cast)
 
@@ -124,27 +132,31 @@ class FarcasterGrazer:
 
 def _normalize_cast(item: dict) -> Dict:
     """Normalize a Farcaster cast object into a consistent dict."""
-    author_data = item.get("author", {})
-    reactions = item.get("reactions", {})
+    if not isinstance(item, dict):
+        item = {}
+    author_data = item.get("author") if isinstance(item.get("author"), dict) else {}
+    reactions = item.get("reactions") if isinstance(item.get("reactions"), dict) else {}
+    replies = item.get("replies") if isinstance(item.get("replies"), dict) else {}
+    channel = item.get("channel") if isinstance(item.get("channel"), dict) else {}
 
     fid = author_data.get("fid", "")
-    hash_val = item.get("hash", "")
-    username = author_data.get("username", "")
+    hash_val = item.get("hash") or ""
+    username = author_data.get("username") or ""
 
     # Warpcast URL
     url = f"https://warpcast.com/{username}/{hash_val[:10]}" if username and hash_val else ""
 
     return {
         "hash": hash_val,
-        "text": item.get("text", ""),
-        "timestamp": item.get("timestamp", ""),
+        "text": item.get("text") or "",
+        "timestamp": item.get("timestamp") or "",
         "author_fid": fid,
         "author_username": username,
-        "author_name": author_data.get("display_name", username),
-        "author_pfp": author_data.get("pfp_url", ""),
+        "author_name": author_data.get("display_name") or username,
+        "author_pfp": author_data.get("pfp_url") or "",
         "url": url,
-        "likes": reactions.get("likes_count", reactions.get("likes", 0)),
-        "recasts": reactions.get("recasts_count", reactions.get("recasts", 0)),
-        "replies": item.get("replies", {}).get("count", 0),
-        "channel": item.get("channel", {}).get("id", "") if isinstance(item.get("channel"), dict) else "",
+        "likes": reactions.get("likes_count", reactions.get("likes", 0)) or 0,
+        "recasts": reactions.get("recasts_count", reactions.get("recasts", 0)) or 0,
+        "replies": replies.get("count", 0) or 0,
+        "channel": channel.get("id", ""),
     }
