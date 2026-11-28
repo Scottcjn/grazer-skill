@@ -3,11 +3,13 @@
  * @elyanlabs/grazer
  */
 
-import axios, { AxiosInstance } from 'axios';
+import axios from 'axios';
+import type { AxiosInstance } from 'axios';
 import { generateSvg, svgToMedia, generateTemplateSvg, generateLlmSvg } from './imagegen';
 import type { ImageGenResult, FourclawMedia, ImageGenConfig } from './imagegen';
 
-import { YouTubeDiscovery, YouTubeVideo } from './youtube';
+import { YouTubeDiscovery } from './youtube';
+import type { YouTubeVideo } from './youtube';
 export { generateSvg, svgToMedia, generateTemplateSvg, generateLlmSvg, YouTubeDiscovery };
 export type { ImageGenResult, FourclawMedia, ImageGenConfig, YouTubeVideo };
 
@@ -109,6 +111,17 @@ export interface MoltExchangeQuestion {
   created_at: string;
 }
 
+function encodePathSegment(value: string, field: string): string {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error(`${field} must be a non-empty string`);
+  }
+  const cleaned = value.trim();
+  if (cleaned === '.' || cleaned === '..') {
+    throw new Error(`${field} must not be '.' or '..'`);
+  }
+  return encodeURIComponent(cleaned);
+}
+
 export class GrazerClient {
   private http: AxiosInstance;
   private config: GrazerConfig;
@@ -175,24 +188,29 @@ export class GrazerClient {
     category?: string;
     agent?: string;
     limit?: number;
-  }): Promise<BottubeVideo[]> {
+  } = {}): Promise<BottubeVideo[]> {
     const { category, agent, limit = 20 } = options;
     const params: any = { limit };
     if (category) params.category = category;
     if (agent) params.agent = agent;
 
     const resp = await this.http.get('https://bottube.ai/api/videos', { params });
-    return resp.data.videos.map((v: any) => ({
-      ...v,
-      stream_url: `https://bottube.ai/api/videos/${v.id}/stream`,
-    }));
+    const videos = resp.data?.videos || [];
+    return videos.map((v: any) => {
+      const publicId = v.video_id ?? v.id;
+      const streamId = encodeURIComponent(String(publicId ?? ''));
+      return {
+        ...v,
+        stream_url: `https://bottube.ai/api/videos/${streamId}/stream`,
+      };
+    });
   }
 
   async searchBottube(query: string, limit = 10): Promise<BottubeVideo[]> {
-    const resp = await this.http.get('https://bottube.ai/api/videos/search', {
+    const resp = await this.http.get('https://bottube.ai/api/search', {
       params: { q: query, limit },
     });
-    return resp.data.videos;
+    return resp.data?.videos || [];
   }
 
   async getBottubeStats(): Promise<any> {
@@ -207,7 +225,7 @@ export class GrazerClient {
   async discoverMoltbook(options: {
     submolt?: string;
     limit?: number;
-  }): Promise<MoltbookPost[]> {
+  } = {}): Promise<MoltbookPost[]> {
     const { submolt = 'tech', limit = 20 } = options;
     const resp = await this.http.get('https://www.moltbook.com/api/v1/posts', {
       params: { submolt, limit },
@@ -276,8 +294,9 @@ export class GrazerClient {
     if (!this.config.clawcities) {
       throw new Error('ClawCities API key required');
     }
+    const siteSeg = encodePathSegment(siteName, 'siteName');
     const resp = await this.http.post(
-      `https://clawcities.com/api/v1/sites/${siteName}/comments`,
+      `https://clawcities.com/api/v1/sites/${siteSeg}/comments`,
       { body: message },
       {
         headers: {
@@ -345,8 +364,9 @@ export class GrazerClient {
     const params: any = { limit: Math.min(limit, 20) };
     if (includeContent) params.includeContent = 1;
 
+    const boardSeg = encodePathSegment(board, 'board');
     const resp = await this.http.get(
-      `https://www.4claw.org/api/v1/boards/${board}/threads`,
+      `https://www.4claw.org/api/v1/boards/${boardSeg}/threads`,
       { params, headers: this.fourclawHeaders() }
     );
     return resp.data.threads || [];
@@ -360,8 +380,9 @@ export class GrazerClient {
   }
 
   async getFourclawThread(threadId: string): Promise<any> {
+    const threadSeg = encodePathSegment(threadId, 'threadId');
     const resp = await this.http.get(
-      `https://www.4claw.org/api/v1/threads/${threadId}`,
+      `https://www.4claw.org/api/v1/threads/${threadSeg}`,
       { headers: this.fourclawHeaders() }
     );
     return resp.data;
@@ -392,8 +413,9 @@ export class GrazerClient {
       body.media = svgToMedia(result.svg);
     }
 
+    const boardSeg = encodePathSegment(board, 'board');
     const resp = await this.http.post(
-      `https://www.4claw.org/api/v1/boards/${board}/threads`,
+      `https://www.4claw.org/api/v1/boards/${boardSeg}/threads`,
       body,
       {
         headers: {
@@ -430,8 +452,9 @@ export class GrazerClient {
       body.media = svgToMedia(result.svg);
     }
 
+    const threadSeg = encodePathSegment(threadId, 'threadId');
     const resp = await this.http.post(
-      `https://www.4claw.org/api/v1/threads/${threadId}/replies`,
+      `https://www.4claw.org/api/v1/threads/${threadSeg}/replies`,
       body,
       {
         headers: {
@@ -488,9 +511,10 @@ export class GrazerClient {
   }
 
   async replyColony(postId: string, body: string): Promise<any> {
+    const postSeg = encodePathSegment(postId, 'postId');
     const headers = await this.colonyAuth();
     const resp = await this.http.post(
-      `https://thecolony.cc/api/v1/posts/${postId}/comments`,
+      `https://thecolony.cc/api/v1/posts/${postSeg}/comments`,
       { body },
       { headers }
     );
@@ -584,8 +608,9 @@ export class GrazerClient {
 
   async answerMoltExchange(questionId: string, body: string): Promise<any> {
     if (!this.config.moltexchange) throw new Error('MoltExchange API key required');
+    const questionSeg = encodePathSegment(questionId, 'questionId');
     const resp = await this.http.post(
-      `https://moltexchange.ai/v1/questions/${questionId}/answers`,
+      `https://moltexchange.ai/v1/questions/${questionSeg}/answers`,
       { body },
       { headers: this.moltexchangeHeaders() }
     );
@@ -626,7 +651,7 @@ export class GrazerClient {
   // YouTube
   // ───────────────────────────────────────────────────────────
 
-  async discoverYouTube(options: { query?: string; limit?: number }): Promise<YouTubeVideo[]> {
+  async discoverYouTube(options: { query?: string; limit?: number } = {}): Promise<YouTubeVideo[]> {
     const discovery = new YouTubeDiscovery(this.config.youtube);
     return discovery.discover(options);
   }

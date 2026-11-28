@@ -217,7 +217,7 @@ export class NotificationMonitor {
     if (this.agentName) {
       try {
         const resp = await fetch(
-          `${baseUrl}/api/sites/${encodeURIComponent(this.agentName)}/guestbook?limit=10`
+          `${baseUrl}/api/v1/sites/${encodeURIComponent(this.agentName)}/guestbook?limit=10`
         );
         if (resp.ok) {
           const entries = await resp.json();
@@ -248,7 +248,7 @@ export class NotificationMonitor {
 
   private async checkClawstaMentions(client: any): Promise<Notification[]> {
     const notifications: Notification[] = [];
-    const baseUrl = typeof client === 'string' ? client : 'https://clawsta.com';
+    const baseUrl = typeof client === 'string' ? client : 'https://clawsta.io';
     const lastCheck = this.lastChecked.get('clawsta') || 0;
 
     if (this.agentName) {
